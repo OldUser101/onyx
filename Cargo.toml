@@ -5,8 +5,12 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.100"
+chrono = "0.4.43"
 clap = { version = "4.5.54", features = ["derive"] }
+jacquard = "0.9.5"
+jacquard-oauth = { version = "0.9.6", features = ["browser-open", "loopback"] }
 onyx-lexicons = { path = "crates/lexicons" }
+tokio = { version = "1.49.0", features = ["macros", "rt", "rt-multi-thread"] }
 
 [workspace]
 members = [ ".", "crates/lexicons" ]

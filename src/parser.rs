@@ -18,10 +18,10 @@ pub struct Scrobble {
     pub artist_name: String,
     pub album_name: Option<String>,
     pub track_name: String,
-    pub track_num: Option<u64>,
-    pub duration: u64,
+    pub track_num: Option<i64>,
+    pub duration: i64,
     pub rating: ScrobbleRating,
-    pub timestamp: u64,
+    pub timestamp: i64,
     pub mb_track_id: Option<String>,
 }
 
@@ -64,7 +64,7 @@ impl ScrobbleLog {
         }
     }
 
-    fn parse_optional_u64(s: &str) -> Option<u64> {
+    fn parse_optional_i64(s: &str) -> Option<i64> {
         if s.is_empty() { None } else { s.parse().ok() }
     }
 
@@ -95,7 +95,7 @@ impl ScrobbleLog {
             artist_name: fields[0].to_string(),
             album_name: Self::parse_optional_string(fields[1]),
             track_name: fields[2].to_string(),
-            track_num: Self::parse_optional_u64(fields[3]),
+            track_num: Self::parse_optional_i64(fields[3]),
             duration: fields[4].parse()?,
             rating: Self::parse_rating(fields[5])?,
             timestamp: fields[6].parse()?,
