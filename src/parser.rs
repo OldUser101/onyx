@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader}, path::PathBuf,
 };
 
 use anyhow::{Result, anyhow};
@@ -168,8 +168,8 @@ impl ScrobbleLog {
         })
     }
 
-    pub fn parse_file(filename: String) -> Result<Self> {
-        let file = File::open(filename)?;
+    pub fn parse_file(path: PathBuf) -> Result<Self> {
+        let file = File::open(path)?;
         let reader = BufReader::new(file);
         Self::parse(reader)
     }
