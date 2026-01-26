@@ -5,3 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.100"
+onyx-lexicons = { path = "crates/lexicons" }
+
+[workspace]
+members = [ ".", "crates/lexicons" ]
