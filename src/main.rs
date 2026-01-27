@@ -8,9 +8,13 @@ use jacquard::{
 };
 use jacquard_oauth::{client::OAuthClient, loopback::LoopbackConfig};
 use onyx_lexicons::fm_teal::alpha::feed::{Artist, play::Play};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::parser::{ScrobbleLog, ScrobbleRating};
+use crate::{
+    auth::{Authenticator, KeyringAuthStore},
+    parser::{ScrobbleLog, ScrobbleRating},
+};
 use clap::{
     CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum,
     builder::{
@@ -59,7 +63,7 @@ enum AuthCommands {
     /// Login with an ATProto handle or DID
     Login {
         /// Handle to use for login
-        handle: CowStr<'static>,
+        ident: String,
 
         /// Preferred method of storing credentials
         #[arg(short, long, default_value = "keyring")]
@@ -67,7 +71,7 @@ enum AuthCommands {
 
         /// App password to use, OAuth used if left blank
         #[arg(short, long)]
-        password: Option<CowStr<'static>>,
+        password: Option<String>,
     },
 
     /// Logout of your account
@@ -77,16 +81,13 @@ enum AuthCommands {
     Whoami,
 }
 
-#[derive(Debug, Clone, ValueEnum)]
+#[derive(Debug, Clone, ValueEnum, Serialize, Deserialize, PartialEq)]
 enum StoreMethod {
     /// Use the system keyring, if available
     Keyring,
 
     /// Save credentials to a file
     File,
-
-    /// Use temporary environment variables
-    Env,
 }
 
 #[derive(Subcommand, Debug)]
@@ -122,6 +123,33 @@ async fn main() {
     let mut matches = Args::command().styles(args_styles()).get_matches();
     let args = Args::from_arg_matches_mut(&mut matches).unwrap();
 
+    match args.command {
+        Some(Commands::Auth { command }) => match command {
+            Some(AuthCommands::Login {
+                ident,
+                store,
+                password,
+            }) => {
+                let config_dir = dirs::config_dir().unwrap().join("onyx");
+                let auth = Authenticator::try_new("onyx", &config_dir).unwrap();
+
+                if let Err(e) = auth.login(&ident, store, password).await {
+                    println!("{e}");
+                }
+            }
+            Some(AuthCommands::Logout) => {
+                let config_dir = dirs::config_dir().unwrap().join("onyx");
+                let auth = Authenticator::try_new("onyx", &config_dir).unwrap();
+
+                if let Err(e) = auth.logout().await {
+                    println!("{e}");
+                }
+            }
+            _ => {}
+        },
+        _ => {}
+    }
+
     /*
     match args.command {
         Some(Commands::Dump { path }) => {
@@ -155,10 +183,11 @@ fn generate_client_agent() -> String {
     format!("onyx/v{}", env!("CARGO_PKG_VERSION"))
 }
 
-async fn upload_log(handle: CowStr<'static>, path: PathBuf, store: PathBuf) -> Result<()> {
+async fn upload_log(handle: CowStr<'static>, path: PathBuf) -> Result<()> {
     let log = ScrobbleLog::parse_file(path)?;
+    let store = KeyringAuthStore::new("onyx".to_string());
 
-    let oauth = OAuthClient::with_default_config(FileAuthStore::new(store));
+    let oauth = OAuthClient::with_default_config(store);
 
     let session = oauth
         .login_with_local_server(handle, Default::default(), LoopbackConfig::default())
@@ -166,7 +195,7 @@ async fn upload_log(handle: CowStr<'static>, path: PathBuf, store: PathBuf) -> R
 
     let agent: Agent<_> = Agent::from(session);
 
-    let client_agent = generate_client_agent();
+    /*   let client_agent = generate_client_agent();
 
     for entry in log.entries {
         if entry.rating == ScrobbleRating::Skipped {
@@ -215,7 +244,7 @@ async fn upload_log(handle: CowStr<'static>, path: PathBuf, store: PathBuf) -> R
 
         let _ = agent.create_record(play, None).await?;
         println!("[✓] {}", entry.track_name);
-    }
+    }*/
 
     Ok(())
 }
