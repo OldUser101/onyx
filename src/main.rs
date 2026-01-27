@@ -12,13 +12,15 @@ use std::path::PathBuf;
 
 use crate::parser::{ScrobbleLog, ScrobbleRating};
 use clap::{
-    CommandFactory, FromArgMatches, Parser, Subcommand,
+    CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum,
     builder::{
         Styles,
         styling::{AnsiColor, Effects},
     },
 };
 
+mod auth;
+mod error;
 mod parser;
 
 fn args_styles() -> Styles {
@@ -39,24 +41,80 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Dump a scrobbler log file
-    Dump {
-        /// File to dump
-        #[arg(default_value = ".scrobbler.log")]
-        path: PathBuf,
+    /// Authentication related commands
+    Auth {
+        #[command(subcommand)]
+        command: Option<AuthCommands>,
     },
-    Upload {
-        /// Handle to login with
+
+    /// Scrobble tracks
+    Scrobble {
+        #[command(subcommand)]
+        command: Option<ScrobbleCommands>,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum AuthCommands {
+    /// Login with an ATProto handle or DID
+    Login {
+        /// Handle to use for login
         handle: CowStr<'static>,
 
-        /// File to upload
-        #[arg(default_value = ".scrobbler.log")]
-        path: PathBuf,
+        /// Preferred method of storing credentials
+        #[arg(short, long, default_value = "keyring")]
+        store: StoreMethod,
 
-        /// Path to auth store file
-        #[arg(default_value = "/tmp/onyx-oauth-session.json")]
-        store: PathBuf,
+        /// App password to use, OAuth used if left blank
+        #[arg(short, long)]
+        password: Option<CowStr<'static>>,
     },
+
+    /// Logout of your account
+    Logout,
+
+    /// Display user information
+    Whoami,
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+enum StoreMethod {
+    /// Use the system keyring, if available
+    Keyring,
+
+    /// Save credentials to a file
+    File,
+
+    /// Use temporary environment variables
+    Env,
+}
+
+#[derive(Subcommand, Debug)]
+enum ScrobbleCommands {
+    /// Scrobble a single track
+    Track {
+        /// Track name
+        track_name: CowStr<'static>,
+    },
+
+    /// Scrobble tracks from a log file
+    Logfile {
+        /// Log file path
+        log: PathBuf,
+
+        /// Log file format
+        log_format: LogFormat,
+
+        /// Delete the log file after processing
+        #[arg(short, long, action)]
+        delete: bool,
+    },
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+enum LogFormat {
+    /// Use AudioScrobbler log format
+    AudioScrobbler,
 }
 
 #[tokio::main]
@@ -64,6 +122,7 @@ async fn main() {
     let mut matches = Args::command().styles(args_styles()).get_matches();
     let args = Args::from_arg_matches_mut(&mut matches).unwrap();
 
+    /*
     match args.command {
         Some(Commands::Dump { path }) => {
             if let Err(e) = dump_log(path) {
@@ -82,7 +141,7 @@ async fn main() {
         _ => {
             let _ = Args::command().styles(args_styles()).print_long_help();
         }
-    }
+    }*/
 }
 
 fn dump_log(path: PathBuf) -> Result<()> {
@@ -113,7 +172,7 @@ async fn upload_log(handle: CowStr<'static>, path: PathBuf, store: PathBuf) -> R
         if entry.rating == ScrobbleRating::Skipped {
             continue;
         }
-        
+
         let dt: DateTime<FixedOffset> = if let Some(tz) = &log.timezone
             && tz == "UTC"
         {

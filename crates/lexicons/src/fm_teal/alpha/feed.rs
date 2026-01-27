@@ -18,7 +18,7 @@ pub mod play;
     PartialEq,
     Eq,
     jacquard_derive::IntoStatic,
-    Default
+    Default,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct Artist<'a> {
@@ -31,9 +31,7 @@ pub struct Artist<'a> {
     pub artist_name: jacquard_common::CowStr<'a>,
 }
 
-fn lexicon_doc_fm_teal_alpha_feed_defs() -> ::jacquard_lexicon::lexicon::LexiconDoc<
-    'static,
-> {
+fn lexicon_doc_fm_teal_alpha_feed_defs() -> ::jacquard_lexicon::lexicon::LexiconDoc<'static> {
     ::jacquard_lexicon::lexicon::LexiconDoc {
         lexicon: ::jacquard_lexicon::lexicon::Lexicon::Lexicon1,
         id: ::jacquard_common::CowStr::new_static("fm.teal.alpha.feed.defs"),
@@ -43,62 +41,58 @@ fn lexicon_doc_fm_teal_alpha_feed_defs() -> ::jacquard_lexicon::lexicon::Lexicon
             let mut map = ::alloc::collections::BTreeMap::new();
             map.insert(
                 ::jacquard_common::smol_str::SmolStr::new_static("artist"),
-                ::jacquard_lexicon::lexicon::LexUserType::Object(::jacquard_lexicon::lexicon::LexObject {
-                    description: None,
-                    required: Some(
-                        vec![
-                            ::jacquard_common::smol_str::SmolStr::new_static("artistName")
-                        ],
-                    ),
-                    nullable: None,
-                    properties: {
-                        #[allow(unused_mut)]
-                        let mut map = ::alloc::collections::BTreeMap::new();
-                        map.insert(
-                            ::jacquard_common::smol_str::SmolStr::new_static(
-                                "artistMbId",
-                            ),
-                            ::jacquard_lexicon::lexicon::LexObjectProperty::String(::jacquard_lexicon::lexicon::LexString {
-                                description: Some(
-                                    ::jacquard_common::CowStr::new_static(
-                                        "The Musicbrainz ID of the artist",
-                                    ),
+                ::jacquard_lexicon::lexicon::LexUserType::Object(
+                    ::jacquard_lexicon::lexicon::LexObject {
+                        description: None,
+                        required: Some(vec![::jacquard_common::smol_str::SmolStr::new_static(
+                            "artistName",
+                        )]),
+                        nullable: None,
+                        properties: {
+                            #[allow(unused_mut)]
+                            let mut map = ::alloc::collections::BTreeMap::new();
+                            map.insert(
+                                ::jacquard_common::smol_str::SmolStr::new_static("artistMbId"),
+                                ::jacquard_lexicon::lexicon::LexObjectProperty::String(
+                                    ::jacquard_lexicon::lexicon::LexString {
+                                        description: Some(::jacquard_common::CowStr::new_static(
+                                            "The Musicbrainz ID of the artist",
+                                        )),
+                                        format: None,
+                                        default: None,
+                                        min_length: None,
+                                        max_length: None,
+                                        min_graphemes: None,
+                                        max_graphemes: None,
+                                        r#enum: None,
+                                        r#const: None,
+                                        known_values: None,
+                                    },
                                 ),
-                                format: None,
-                                default: None,
-                                min_length: None,
-                                max_length: None,
-                                min_graphemes: None,
-                                max_graphemes: None,
-                                r#enum: None,
-                                r#const: None,
-                                known_values: None,
-                            }),
-                        );
-                        map.insert(
-                            ::jacquard_common::smol_str::SmolStr::new_static(
-                                "artistName",
-                            ),
-                            ::jacquard_lexicon::lexicon::LexObjectProperty::String(::jacquard_lexicon::lexicon::LexString {
-                                description: Some(
-                                    ::jacquard_common::CowStr::new_static(
-                                        "The name of the artist",
-                                    ),
+                            );
+                            map.insert(
+                                ::jacquard_common::smol_str::SmolStr::new_static("artistName"),
+                                ::jacquard_lexicon::lexicon::LexObjectProperty::String(
+                                    ::jacquard_lexicon::lexicon::LexString {
+                                        description: Some(::jacquard_common::CowStr::new_static(
+                                            "The name of the artist",
+                                        )),
+                                        format: None,
+                                        default: None,
+                                        min_length: Some(1usize),
+                                        max_length: Some(256usize),
+                                        min_graphemes: None,
+                                        max_graphemes: Some(2560usize),
+                                        r#enum: None,
+                                        r#const: None,
+                                        known_values: None,
+                                    },
                                 ),
-                                format: None,
-                                default: None,
-                                min_length: Some(1usize),
-                                max_length: Some(256usize),
-                                min_graphemes: None,
-                                max_graphemes: Some(2560usize),
-                                r#enum: None,
-                                r#const: None,
-                                known_values: None,
-                            }),
-                        );
-                        map
+                            );
+                            map
+                        },
                     },
-                }),
+                ),
             );
             map.insert(
                 ::jacquard_common::smol_str::SmolStr::new_static("playView"),
@@ -378,9 +372,7 @@ impl<'a> ::jacquard_lexicon::schema::LexiconSchema for Artist<'a> {
             #[allow(unused_comparisons)]
             if <str>::len(value.as_ref()) > 256usize {
                 return Err(::jacquard_lexicon::validation::ConstraintError::MaxLength {
-                    path: ::jacquard_lexicon::validation::ValidationPath::from_field(
-                        "artist_name",
-                    ),
+                    path: ::jacquard_lexicon::validation::ValidationPath::from_field("artist_name"),
                     max: 256usize,
                     actual: <str>::len(value.as_ref()),
                 });
@@ -391,9 +383,7 @@ impl<'a> ::jacquard_lexicon::schema::LexiconSchema for Artist<'a> {
             #[allow(unused_comparisons)]
             if <str>::len(value.as_ref()) < 1usize {
                 return Err(::jacquard_lexicon::validation::ConstraintError::MinLength {
-                    path: ::jacquard_lexicon::validation::ValidationPath::from_field(
-                        "artist_name",
-                    ),
+                    path: ::jacquard_lexicon::validation::ValidationPath::from_field("artist_name"),
                     min: 1usize,
                     actual: <str>::len(value.as_ref()),
                 });
@@ -402,19 +392,19 @@ impl<'a> ::jacquard_lexicon::schema::LexiconSchema for Artist<'a> {
         {
             let value = &self.artist_name;
             {
-                let count = ::unicode_segmentation::UnicodeSegmentation::graphemes(
-                        value.as_ref(),
-                        true,
-                    )
-                    .count();
+                let count =
+                    ::unicode_segmentation::UnicodeSegmentation::graphemes(value.as_ref(), true)
+                        .count();
                 if count > 2560usize {
-                    return Err(::jacquard_lexicon::validation::ConstraintError::MaxGraphemes {
-                        path: ::jacquard_lexicon::validation::ValidationPath::from_field(
-                            "artist_name",
-                        ),
-                        max: 2560usize,
-                        actual: count,
-                    });
+                    return Err(
+                        ::jacquard_lexicon::validation::ConstraintError::MaxGraphemes {
+                            path: ::jacquard_lexicon::validation::ValidationPath::from_field(
+                                "artist_name",
+                            ),
+                            max: 2560usize,
+                            actual: count,
+                        },
+                    );
                 }
             }
         }
@@ -424,13 +414,7 @@ impl<'a> ::jacquard_lexicon::schema::LexiconSchema for Artist<'a> {
 
 #[jacquard_derive::lexicon]
 #[derive(
-    serde::Serialize,
-    serde::Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    jacquard_derive::IntoStatic
+    serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, jacquard_derive::IntoStatic,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct PlayView<'a> {
@@ -482,7 +466,7 @@ pub struct PlayView<'a> {
 
 pub mod play_view_state {
 
-    pub use crate::builder_types::{Set, Unset, IsSet, IsUnset};
+    pub use crate::builder_types::{IsSet, IsUnset, Set, Unset};
     #[allow(unused)]
     use ::core::marker::PhantomData;
     mod sealed {
@@ -557,18 +541,7 @@ impl<'a> PlayViewBuilder<'a, play_view_state::Empty> {
         PlayViewBuilder {
             _phantom_state: ::core::marker::PhantomData,
             __unsafe_private_named: (
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
+                None, None, None, None, None, None, None, None, None, None, None, None,
             ),
             _phantom: ::core::marker::PhantomData,
         }
@@ -609,10 +582,7 @@ impl<'a, S: play_view_state::State> PlayViewBuilder<'a, S> {
 
 impl<'a, S: play_view_state::State> PlayViewBuilder<'a, S> {
     /// Set the `isrc` field (optional)
-    pub fn isrc(
-        mut self,
-        value: impl Into<Option<jacquard_common::CowStr<'a>>>,
-    ) -> Self {
+    pub fn isrc(mut self, value: impl Into<Option<jacquard_common::CowStr<'a>>>) -> Self {
         self.__unsafe_private_named.2 = value.into();
         self
     }
@@ -644,18 +614,12 @@ impl<'a, S: play_view_state::State> PlayViewBuilder<'a, S> {
 
 impl<'a, S: play_view_state::State> PlayViewBuilder<'a, S> {
     /// Set the `originUrl` field (optional)
-    pub fn origin_url(
-        mut self,
-        value: impl Into<Option<jacquard_common::CowStr<'a>>>,
-    ) -> Self {
+    pub fn origin_url(mut self, value: impl Into<Option<jacquard_common::CowStr<'a>>>) -> Self {
         self.__unsafe_private_named.4 = value.into();
         self
     }
     /// Set the `originUrl` field to an Option value (optional)
-    pub fn maybe_origin_url(
-        mut self,
-        value: Option<jacquard_common::CowStr<'a>>,
-    ) -> Self {
+    pub fn maybe_origin_url(mut self, value: Option<jacquard_common::CowStr<'a>>) -> Self {
         self.__unsafe_private_named.4 = value;
         self
     }
@@ -690,10 +654,7 @@ impl<'a, S: play_view_state::State> PlayViewBuilder<'a, S> {
         self
     }
     /// Set the `recordingMbId` field to an Option value (optional)
-    pub fn maybe_recording_mb_id(
-        mut self,
-        value: Option<jacquard_common::CowStr<'a>>,
-    ) -> Self {
+    pub fn maybe_recording_mb_id(mut self, value: Option<jacquard_common::CowStr<'a>>) -> Self {
         self.__unsafe_private_named.6 = value;
         self
     }
@@ -701,18 +662,12 @@ impl<'a, S: play_view_state::State> PlayViewBuilder<'a, S> {
 
 impl<'a, S: play_view_state::State> PlayViewBuilder<'a, S> {
     /// Set the `releaseMbId` field (optional)
-    pub fn release_mb_id(
-        mut self,
-        value: impl Into<Option<jacquard_common::CowStr<'a>>>,
-    ) -> Self {
+    pub fn release_mb_id(mut self, value: impl Into<Option<jacquard_common::CowStr<'a>>>) -> Self {
         self.__unsafe_private_named.7 = value.into();
         self
     }
     /// Set the `releaseMbId` field to an Option value (optional)
-    pub fn maybe_release_mb_id(
-        mut self,
-        value: Option<jacquard_common::CowStr<'a>>,
-    ) -> Self {
+    pub fn maybe_release_mb_id(mut self, value: Option<jacquard_common::CowStr<'a>>) -> Self {
         self.__unsafe_private_named.7 = value;
         self
     }
@@ -720,18 +675,12 @@ impl<'a, S: play_view_state::State> PlayViewBuilder<'a, S> {
 
 impl<'a, S: play_view_state::State> PlayViewBuilder<'a, S> {
     /// Set the `releaseName` field (optional)
-    pub fn release_name(
-        mut self,
-        value: impl Into<Option<jacquard_common::CowStr<'a>>>,
-    ) -> Self {
+    pub fn release_name(mut self, value: impl Into<Option<jacquard_common::CowStr<'a>>>) -> Self {
         self.__unsafe_private_named.8 = value.into();
         self
     }
     /// Set the `releaseName` field to an Option value (optional)
-    pub fn maybe_release_name(
-        mut self,
-        value: Option<jacquard_common::CowStr<'a>>,
-    ) -> Self {
+    pub fn maybe_release_name(mut self, value: Option<jacquard_common::CowStr<'a>>) -> Self {
         self.__unsafe_private_named.8 = value;
         self
     }
@@ -758,18 +707,12 @@ impl<'a, S: play_view_state::State> PlayViewBuilder<'a, S> {
 
 impl<'a, S: play_view_state::State> PlayViewBuilder<'a, S> {
     /// Set the `trackMbId` field (optional)
-    pub fn track_mb_id(
-        mut self,
-        value: impl Into<Option<jacquard_common::CowStr<'a>>>,
-    ) -> Self {
+    pub fn track_mb_id(mut self, value: impl Into<Option<jacquard_common::CowStr<'a>>>) -> Self {
         self.__unsafe_private_named.10 = value.into();
         self
     }
     /// Set the `trackMbId` field to an Option value (optional)
-    pub fn maybe_track_mb_id(
-        mut self,
-        value: Option<jacquard_common::CowStr<'a>>,
-    ) -> Self {
+    pub fn maybe_track_mb_id(mut self, value: Option<jacquard_common::CowStr<'a>>) -> Self {
         self.__unsafe_private_named.10 = value;
         self
     }
@@ -871,19 +814,19 @@ impl<'a> ::jacquard_lexicon::schema::LexiconSchema for PlayView<'a> {
         }
         if let Some(ref value) = self.release_name {
             {
-                let count = ::unicode_segmentation::UnicodeSegmentation::graphemes(
-                        value.as_ref(),
-                        true,
-                    )
-                    .count();
+                let count =
+                    ::unicode_segmentation::UnicodeSegmentation::graphemes(value.as_ref(), true)
+                        .count();
                 if count > 2560usize {
-                    return Err(::jacquard_lexicon::validation::ConstraintError::MaxGraphemes {
-                        path: ::jacquard_lexicon::validation::ValidationPath::from_field(
-                            "release_name",
-                        ),
-                        max: 2560usize,
-                        actual: count,
-                    });
+                    return Err(
+                        ::jacquard_lexicon::validation::ConstraintError::MaxGraphemes {
+                            path: ::jacquard_lexicon::validation::ValidationPath::from_field(
+                                "release_name",
+                            ),
+                            max: 2560usize,
+                            actual: count,
+                        },
+                    );
                 }
             }
         }
@@ -901,19 +844,19 @@ impl<'a> ::jacquard_lexicon::schema::LexiconSchema for PlayView<'a> {
         }
         if let Some(ref value) = self.submission_client_agent {
             {
-                let count = ::unicode_segmentation::UnicodeSegmentation::graphemes(
-                        value.as_ref(),
-                        true,
-                    )
-                    .count();
+                let count =
+                    ::unicode_segmentation::UnicodeSegmentation::graphemes(value.as_ref(), true)
+                        .count();
                 if count > 2560usize {
-                    return Err(::jacquard_lexicon::validation::ConstraintError::MaxGraphemes {
-                        path: ::jacquard_lexicon::validation::ValidationPath::from_field(
-                            "submission_client_agent",
-                        ),
-                        max: 2560usize,
-                        actual: count,
-                    });
+                    return Err(
+                        ::jacquard_lexicon::validation::ConstraintError::MaxGraphemes {
+                            path: ::jacquard_lexicon::validation::ValidationPath::from_field(
+                                "submission_client_agent",
+                            ),
+                            max: 2560usize,
+                            actual: count,
+                        },
+                    );
                 }
             }
         }
@@ -922,9 +865,7 @@ impl<'a> ::jacquard_lexicon::schema::LexiconSchema for PlayView<'a> {
             #[allow(unused_comparisons)]
             if <str>::len(value.as_ref()) > 256usize {
                 return Err(::jacquard_lexicon::validation::ConstraintError::MaxLength {
-                    path: ::jacquard_lexicon::validation::ValidationPath::from_field(
-                        "track_name",
-                    ),
+                    path: ::jacquard_lexicon::validation::ValidationPath::from_field("track_name"),
                     max: 256usize,
                     actual: <str>::len(value.as_ref()),
                 });
@@ -935,9 +876,7 @@ impl<'a> ::jacquard_lexicon::schema::LexiconSchema for PlayView<'a> {
             #[allow(unused_comparisons)]
             if <str>::len(value.as_ref()) < 1usize {
                 return Err(::jacquard_lexicon::validation::ConstraintError::MinLength {
-                    path: ::jacquard_lexicon::validation::ValidationPath::from_field(
-                        "track_name",
-                    ),
+                    path: ::jacquard_lexicon::validation::ValidationPath::from_field("track_name"),
                     min: 1usize,
                     actual: <str>::len(value.as_ref()),
                 });
@@ -946,19 +885,19 @@ impl<'a> ::jacquard_lexicon::schema::LexiconSchema for PlayView<'a> {
         {
             let value = &self.track_name;
             {
-                let count = ::unicode_segmentation::UnicodeSegmentation::graphemes(
-                        value.as_ref(),
-                        true,
-                    )
-                    .count();
+                let count =
+                    ::unicode_segmentation::UnicodeSegmentation::graphemes(value.as_ref(), true)
+                        .count();
                 if count > 2560usize {
-                    return Err(::jacquard_lexicon::validation::ConstraintError::MaxGraphemes {
-                        path: ::jacquard_lexicon::validation::ValidationPath::from_field(
-                            "track_name",
-                        ),
-                        max: 2560usize,
-                        actual: count,
-                    });
+                    return Err(
+                        ::jacquard_lexicon::validation::ConstraintError::MaxGraphemes {
+                            path: ::jacquard_lexicon::validation::ValidationPath::from_field(
+                                "track_name",
+                            ),
+                            max: 2560usize,
+                            actual: count,
+                        },
+                    );
                 }
             }
         }
