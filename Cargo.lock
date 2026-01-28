@@ -2819,6 +2819,7 @@ dependencies = [
  "chrono",
  "clap",
  "dirs",
+ "http",
  "jacquard",
  "jacquard-identity",
  "jacquard-oauth",

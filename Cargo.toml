@@ -8,6 +8,7 @@ anyhow = "1.0.100"
 chrono = "0.4.43"
 clap = { version = "4.5.54", features = ["derive"] }
 dirs = "6.0.0"
+http = "1.4.0"
 jacquard = "0.9.5"
 jacquard-identity = { version = "0.9.5", features = ["dns"] }
 jacquard-oauth = { version = "0.9.6", features = ["browser-open", "loopback"] }

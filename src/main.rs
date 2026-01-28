@@ -2,17 +2,16 @@ use anyhow::Result;
 use chrono::{self, DateTime, FixedOffset, Local, TimeZone, Utc};
 use jacquard::{
     CowStr,
-    client::{Agent, AgentSessionExt, FileAuthStore},
+    client::{Agent, AgentSessionExt},
     smol_str::ToSmolStr,
     types::string::Datetime,
 };
-use jacquard_oauth::{client::OAuthClient, loopback::LoopbackConfig};
 use onyx_lexicons::fm_teal::alpha::feed::{Artist, play::Play};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use crate::{
-    auth::{Authenticator, KeyringAuthStore},
+    auth::{Authenticator, GenericSession},
     parser::{ScrobbleLog, ScrobbleRating},
 };
 use clap::{
@@ -147,6 +146,29 @@ async fn main() {
             }
             _ => {}
         },
+        Some(Commands::Scrobble { command }) => match command {
+            Some(ScrobbleCommands::Logfile {
+                log,
+                log_format,
+                delete,
+            }) => {
+                let config_dir = dirs::config_dir().unwrap().join("onyx");
+                let auth = Authenticator::try_new("onyx", &config_dir).unwrap();
+
+                let session = match auth.restore().await {
+                    Ok(session) => session,
+                    Err(e) => {
+                        println!("{e}");
+                        std::process::exit(1);
+                    }
+                };
+
+                if let Err(e) = upload_log(session, log).await {
+                    println!("{e}");
+                }
+            }
+            _ => {}
+        },
         _ => {}
     }
 
@@ -172,30 +194,16 @@ async fn main() {
     }*/
 }
 
-fn dump_log(path: PathBuf) -> Result<()> {
-    let log = ScrobbleLog::parse_file(path)?;
-    println!("{:?}", log);
-
-    Ok(())
-}
-
 fn generate_client_agent() -> String {
     format!("onyx/v{}", env!("CARGO_PKG_VERSION"))
 }
 
-async fn upload_log(handle: CowStr<'static>, path: PathBuf) -> Result<()> {
-    let log = ScrobbleLog::parse_file(path)?;
-    let store = KeyringAuthStore::new("onyx".to_string());
-
-    let oauth = OAuthClient::with_default_config(store);
-
-    let session = oauth
-        .login_with_local_server(handle, Default::default(), LoopbackConfig::default())
-        .await?;
+async fn upload_log(session: GenericSession, log: PathBuf) -> Result<()> {
+    let log = ScrobbleLog::parse_file(log)?;
 
     let agent: Agent<_> = Agent::from(session);
 
-    /*   let client_agent = generate_client_agent();
+    let client_agent = generate_client_agent();
 
     for entry in log.entries {
         if entry.rating == ScrobbleRating::Skipped {
@@ -244,7 +252,7 @@ async fn upload_log(handle: CowStr<'static>, path: PathBuf) -> Result<()> {
 
         let _ = agent.create_record(play, None).await?;
         println!("[✓] {}", entry.track_name);
-    }*/
+    }
 
     Ok(())
 }

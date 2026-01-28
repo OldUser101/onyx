@@ -19,19 +19,19 @@ pub enum OnyxError {
     AuthStore(String),
 
     #[error("session store error: {0}")]
-    SessionStoreStore(#[from] SessionStoreError),
+    SessionStore(String),
 
     #[error("io error: {0}")]
-    Io(#[from] std::io::Error),
+    Io(String),
 
     #[error("serde error: {0}")]
-    Serde(#[from] serde_json::Error),
+    Serde(String),
 
     #[error("identity error: {0}")]
-    Identity(#[from] IdentityError),
+    Identity(String),
 
     #[error("oauth error: {0}")]
-    OAuthError(#[from] OAuthError),
+    OAuthError(String),
 
     #[error(transparent)]
     Other(#[from] Box<dyn std::error::Error + Send + Sync>),
@@ -46,5 +46,35 @@ impl From<AtStrError> for OnyxError {
 impl From<tokio::sync::TryLockError> for OnyxError {
     fn from(value: tokio::sync::TryLockError) -> Self {
         Self::Other(Box::new(value))
+    }
+}
+
+impl From<SessionStoreError> for OnyxError {
+    fn from(err: SessionStoreError) -> Self {
+        OnyxError::SessionStore(err.to_string())
+    }
+}
+
+impl From<std::io::Error> for OnyxError {
+    fn from(err: std::io::Error) -> Self {
+        OnyxError::Io(err.to_string())
+    }
+}
+
+impl From<serde_json::Error> for OnyxError {
+    fn from(err: serde_json::Error) -> Self {
+        OnyxError::Serde(err.to_string())
+    }
+}
+
+impl From<IdentityError> for OnyxError {
+    fn from(err: IdentityError) -> Self {
+        OnyxError::Identity(err.to_string())
+    }
+}
+
+impl From<OAuthError> for OnyxError {
+    fn from(err: OAuthError) -> Self {
+        OnyxError::OAuthError(err.to_string())
     }
 }

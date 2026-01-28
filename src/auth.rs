@@ -1,20 +1,17 @@
-use anyhow::anyhow;
 use jacquard::{
-    client::{
-        Agent, AgentSession, FileAuthStore, SessionStore, SessionStoreError, token::StoredSession,
-    },
+    IntoStatic,
+    client::{AgentSession, FileAuthStore, SessionStore, SessionStoreError, token::StoredSession},
+    error::{ClientError, XrpcResult},
     identity::JacquardResolver,
-    prelude::IdentityResolver,
-    types::{
-        did::Did,
-        string::{AtStrError, Handle},
-    },
+    prelude::{HttpClient, IdentityResolver},
+    types::{did::Did, string::Handle},
+    xrpc::{XrpcClient, XrpcRequest, XrpcResponse},
 };
 use jacquard_identity::PublicResolver;
 use jacquard_oauth::{
     atproto::AtprotoClientMetadata,
     authstore::ClientAuthStore,
-    client::OAuthClient,
+    client::{OAuthClient, OAuthSession},
     loopback::LoopbackConfig,
     session::{ClientData, ClientSessionData},
 };
@@ -164,11 +161,18 @@ impl jacquard_oauth::authstore::ClientAuthStore for KeyringAuthStore {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum AuthMethod {
+    OAuth,
+    AppPassword,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthSession {
     pub did: String,
     pub session_id: String,
     pub store: StoreMethod,
+    pub auth: AuthMethod,
 }
 
 pub struct AuthSessionStore {
@@ -212,6 +216,178 @@ impl AuthSessionStore {
 
         std::fs::remove_file(&session_path)?;
         Ok(())
+    }
+}
+
+// There was probably a better way (I hope)
+pub enum GenericSession {
+    KeyringOAuth(OAuthSession<JacquardResolver, KeyringAuthStore>),
+    FileOAuth(OAuthSession<JacquardResolver, FileAuthStore>),
+}
+
+impl HttpClient for GenericSession {
+    type Error = OnyxError;
+
+    async fn send_http(
+        &self,
+        request: http::Request<Vec<u8>>,
+    ) -> core::result::Result<http::Response<Vec<u8>>, Self::Error> {
+        match self {
+            GenericSession::KeyringOAuth(session) => session
+                .send_http(request)
+                .await
+                .map_err(|e| OnyxError::Identity(e.to_string())),
+            GenericSession::FileOAuth(session) => session
+                .send_http(request)
+                .await
+                .map_err(|e| OnyxError::Identity(e.to_string())),
+        }
+    }
+}
+
+impl XrpcClient for GenericSession {
+    async fn base_uri(&self) -> jacquard::CowStr<'static> {
+        match self {
+            GenericSession::KeyringOAuth(session) => session.base_uri().await,
+            GenericSession::FileOAuth(session) => session.base_uri().await,
+        }
+    }
+
+    async fn opts(&self) -> jacquard::xrpc::CallOptions<'_> {
+        match self {
+            GenericSession::KeyringOAuth(session) => session.opts().await,
+            GenericSession::FileOAuth(session) => session.opts().await,
+        }
+    }
+
+    async fn set_opts(&self, opts: jacquard::xrpc::CallOptions<'_>) {
+        match self {
+            GenericSession::KeyringOAuth(session) => session.set_opts(opts).await,
+            GenericSession::FileOAuth(session) => session.set_opts(opts).await,
+        }
+    }
+
+    async fn set_base_uri(&self, url: jacquard::url::Url) {
+        match self {
+            GenericSession::KeyringOAuth(session) => session.set_base_uri(url).await,
+            GenericSession::FileOAuth(session) => session.set_base_uri(url).await,
+        }
+    }
+
+    async fn send<R>(&self, request: R) -> XrpcResult<XrpcResponse<R>>
+    where
+        R: XrpcRequest + Send + Sync,
+        <R as XrpcRequest>::Response: Send + Sync,
+    {
+        match self {
+            GenericSession::KeyringOAuth(session) => session.send::<R>(request).await,
+            GenericSession::FileOAuth(session) => session.send::<R>(request).await,
+        }
+    }
+
+    async fn send_with_opts<R>(
+        &self,
+        request: R,
+        opts: jacquard::xrpc::CallOptions<'_>,
+    ) -> XrpcResult<XrpcResponse<R>>
+    where
+        R: XrpcRequest + Send + Sync,
+        <R as XrpcRequest>::Response: Send + Sync,
+        Self: Sync,
+    {
+        match self {
+            GenericSession::KeyringOAuth(session) => {
+                session.send_with_opts::<R>(request, opts).await
+            }
+            GenericSession::FileOAuth(session) => session.send_with_opts::<R>(request, opts).await,
+        }
+    }
+}
+
+impl IdentityResolver for GenericSession {
+    fn options(&self) -> &jacquard_identity::resolver::ResolverOptions {
+        match self {
+            GenericSession::KeyringOAuth(session) => session.options(),
+            GenericSession::FileOAuth(session) => session.options(),
+        }
+    }
+
+    async fn resolve_handle(
+        &self,
+        handle: &Handle<'_>,
+    ) -> jacquard_identity::resolver::Result<Did<'static>>
+    where
+        Self: Sync,
+    {
+        match self {
+            GenericSession::KeyringOAuth(session) => session.resolve_handle(handle).await,
+            GenericSession::FileOAuth(session) => session.resolve_handle(handle).await,
+        }
+    }
+
+    async fn resolve_did_doc(
+        &self,
+        did: &Did<'_>,
+    ) -> jacquard_identity::resolver::Result<jacquard_identity::resolver::DidDocResponse>
+    where
+        Self: Sync,
+    {
+        match self {
+            GenericSession::KeyringOAuth(session) => session.resolve_did_doc(did).await,
+            GenericSession::FileOAuth(session) => session.resolve_did_doc(did).await,
+        }
+    }
+}
+
+impl AgentSession for GenericSession {
+    fn session_kind(&self) -> jacquard::client::AgentKind {
+        match self {
+            GenericSession::KeyringOAuth(_) => jacquard::client::AgentKind::OAuth,
+            GenericSession::FileOAuth(_) => jacquard::client::AgentKind::OAuth,
+        }
+    }
+
+    async fn session_info(&self) -> Option<(Did<'static>, Option<jacquard::CowStr<'static>>)> {
+        match self {
+            GenericSession::KeyringOAuth(session) => {
+                let (did, sid) = session.session_info().await;
+                Some((did.into_static(), Some(sid.into_static())))
+            }
+            GenericSession::FileOAuth(session) => {
+                let (did, sid) = session.session_info().await;
+                Some((did.into_static(), Some(sid.into_static())))
+            }
+        }
+    }
+
+    async fn endpoint(&self) -> jacquard::CowStr<'static> {
+        match self {
+            GenericSession::KeyringOAuth(session) => session.endpoint().await,
+            GenericSession::FileOAuth(session) => session.endpoint().await,
+        }
+    }
+
+    async fn set_options<'a>(&'a self, opts: jacquard::xrpc::CallOptions<'a>) {
+        match self {
+            GenericSession::KeyringOAuth(session) => session.set_options(opts).await,
+            GenericSession::FileOAuth(session) => session.set_options(opts).await,
+        }
+    }
+
+    async fn refresh(&self) -> jacquard::error::XrpcResult<jacquard::AuthorizationToken<'static>> {
+        match self {
+            GenericSession::KeyringOAuth(session) => session
+                .refresh()
+                .await
+                .map(|t| t.into_static())
+                .map_err(|e| ClientError::transport(e).with_context("OAuth token refresh failed")),
+
+            GenericSession::FileOAuth(session) => session
+                .refresh()
+                .await
+                .map(|t| t.into_static())
+                .map_err(|e| ClientError::transport(e).with_context("OAuth token refresh failed")),
+        }
     }
 }
 
@@ -263,8 +439,7 @@ impl Authenticator {
         store: StoreMethod,
         password: String,
     ) -> Result<(), OnyxError> {
-        let did = self.resolve_did(ident).await?;
-        Ok(())
+        todo!("Implement login for app password");
     }
 
     async fn login_oauth(&self, ident: &str, store_method: StoreMethod) -> Result<(), OnyxError> {
@@ -289,6 +464,7 @@ impl Authenticator {
                 did: did.to_string(),
                 session_id: session_id.to_string(),
                 store: store_method,
+                auth: AuthMethod::OAuth,
             };
             self.auth_store.set_session(&auth_session)?;
         } else if store_method == StoreMethod::File {
@@ -303,6 +479,7 @@ impl Authenticator {
                 did: did.to_string(),
                 session_id: session_id.to_string(),
                 store: store_method,
+                auth: AuthMethod::OAuth,
             };
             self.auth_store.set_session(&auth_session)?;
         }
@@ -310,7 +487,7 @@ impl Authenticator {
         Ok(())
     }
 
-    pub async fn restore(&self) -> Result<(), OnyxError> {
+    pub async fn restore(&self) -> Result<GenericSession, OnyxError> {
         let session = match self.auth_store.get_session()? {
             Some(s) => s,
             None => {
@@ -318,9 +495,41 @@ impl Authenticator {
             }
         };
 
-        todo!("Implement restoration");
+        match session.auth {
+            AuthMethod::OAuth => self.restore_oauth(session).await,
+            AuthMethod::AppPassword => self.restore_app_password(session).await,
+        }
+    }
 
-        Ok(())
+    async fn restore_app_password(
+        &self,
+        session: AuthSession,
+    ) -> Result<GenericSession, OnyxError> {
+        todo!("Implement restore for app password");
+    }
+
+    async fn restore_oauth(&self, session: AuthSession) -> Result<GenericSession, OnyxError> {
+        let did = Did::new(&session.did)?;
+
+        let client_data = ClientData {
+            keyset: None,
+            config: AtprotoClientMetadata::default_localhost(),
+        };
+
+        match session.store {
+            StoreMethod::Keyring => {
+                let store = KeyringAuthStore::new(self.service.clone());
+                let oauth = OAuthClient::new(store, client_data);
+                let session = oauth.restore(&did, &session.session_id).await?;
+                Ok(GenericSession::KeyringOAuth(session))
+            }
+            StoreMethod::File => {
+                let store = FileAuthStore::new(self.get_file_store());
+                let oauth = OAuthClient::new(store, client_data);
+                let session = oauth.restore(&did, &session.session_id).await?;
+                Ok(GenericSession::FileOAuth(session))
+            }
+        }
     }
 
     pub async fn logout(&self) -> Result<(), OnyxError> {
