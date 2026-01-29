@@ -1,4 +1,4 @@
-use jacquard::{client::SessionStoreError, types::string::AtStrError};
+use jacquard::{client::SessionStoreError, error::ClientError, types::string::AtStrError};
 use jacquard_identity::resolver::IdentityError;
 use jacquard_oauth::error::OAuthError;
 use thiserror::Error;
@@ -32,6 +32,9 @@ pub enum OnyxError {
 
     #[error("oauth error: {0}")]
     OAuthError(String),
+
+    #[error("client error: {0}")]
+    ClientError(String),
 
     #[error(transparent)]
     Other(#[from] Box<dyn std::error::Error + Send + Sync>),
@@ -76,5 +79,11 @@ impl From<IdentityError> for OnyxError {
 impl From<OAuthError> for OnyxError {
     fn from(err: OAuthError) -> Self {
         OnyxError::OAuthError(err.to_string())
+    }
+}
+
+impl From<ClientError> for OnyxError {
+    fn from(err: ClientError) -> Self {
+        OnyxError::ClientError(err.to_string())
     }
 }
