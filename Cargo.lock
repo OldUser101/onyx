@@ -2814,27 +2814,15 @@ dependencies = [
  "dirs",
  "http",
  "jacquard",
+ "jacquard-api",
  "jacquard-identity",
  "jacquard-oauth",
  "keyring",
- "onyx-lexicons",
  "owo-colors",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
-]
-
-[[package]]
-name = "onyx-lexicons"
-version = "0.1.0"
-dependencies = [
- "jacquard-common",
- "jacquard-derive",
- "jacquard-lexicon",
- "rustversion",
- "serde",
- "unicode-segmentation",
 ]
 
 [[package]]

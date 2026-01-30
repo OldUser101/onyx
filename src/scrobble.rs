@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use jacquard::client::{Agent, AgentSessionExt};
 use jacquard::smol_str::ToSmolStr;
 use jacquard::{CowStr, types::string::Datetime};
-use onyx_lexicons::fm_teal::alpha::feed::{Artist, play::Play};
+use jacquard_api::fm_teal::alpha::feed::{Artist, play::Play};
 
 use crate::{
     LogFormat,
