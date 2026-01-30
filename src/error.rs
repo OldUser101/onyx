@@ -21,34 +21,16 @@ impl<T> MapErrExt<T> for Result<T, keyring::Error> {
 
 #[derive(Debug, Error)]
 pub enum OnyxError {
-    #[error("auth store error: {0}")]
-    AuthStore(String),
+    #[error("auth: {0}")]
+    Auth(String),
 
-    #[error("session store error: {0}")]
-    SessionStore(String),
-
-    #[error("io error: {0}")]
+    #[error("io: {0}")]
     Io(String),
 
-    #[error("serde error: {0}")]
-    Serde(String),
+    #[error("parse: {0}")]
+    Parse(String),
 
-    #[error("identity error: {0}")]
-    Identity(String),
-
-    #[error("oauth error: {0}")]
-    OAuthError(String),
-
-    #[error("client error: {0}")]
-    ClientError(String),
-
-    #[error("agent error: {0}")]
-    AgentError(String),
-
-    #[error("parser error: {0}")]
-    ParserError(String),
-
-    #[error(transparent)]
+    #[error("unknown: {0}")]
     Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
@@ -66,7 +48,7 @@ impl From<tokio::sync::TryLockError> for OnyxError {
 
 impl From<SessionStoreError> for OnyxError {
     fn from(err: SessionStoreError) -> Self {
-        OnyxError::SessionStore(err.to_string())
+        OnyxError::Auth(err.to_string())
     }
 }
 
@@ -78,36 +60,39 @@ impl From<std::io::Error> for OnyxError {
 
 impl From<serde_json::Error> for OnyxError {
     fn from(err: serde_json::Error) -> Self {
-        OnyxError::Serde(err.to_string())
+        OnyxError::Parse(err.to_string())
     }
 }
 
 impl From<IdentityError> for OnyxError {
     fn from(err: IdentityError) -> Self {
-        OnyxError::Identity(err.to_string())
+        OnyxError::Other(err.to_string().into())
     }
 }
 
 impl From<OAuthError> for OnyxError {
     fn from(err: OAuthError) -> Self {
-        OnyxError::OAuthError(err.to_string())
+        OnyxError::Auth(err.to_string())
     }
 }
 
 impl From<ClientError> for OnyxError {
     fn from(err: ClientError) -> Self {
-        OnyxError::ClientError(err.to_string())
+        OnyxError::Other(err.to_string().into())
     }
 }
 
 impl From<AgentError> for OnyxError {
     fn from(err: AgentError) -> Self {
-        OnyxError::AgentError(err.to_string())
+        OnyxError::Other(err.to_string().into())
     }
 }
 
 impl From<ParserError> for OnyxError {
     fn from(err: ParserError) -> Self {
-        OnyxError::ParserError(err.to_string())
+        match err {
+            ParserError::Io(e) => OnyxError::Io(e.to_string()),
+            _ => OnyxError::Parse(err.to_string()),
+        }
     }
 }

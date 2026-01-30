@@ -289,19 +289,19 @@ impl HttpClient for GenericSession {
             GenericSession::KeyringOAuth(session) => session
                 .send_http(request)
                 .await
-                .map_err(|e| OnyxError::Identity(e.to_string())),
+                .map_err(|e| OnyxError::Auth(e.to_string())),
             GenericSession::FileOAuth(session) => session
                 .send_http(request)
                 .await
-                .map_err(|e| OnyxError::Identity(e.to_string())),
+                .map_err(|e| OnyxError::Auth(e.to_string())),
             GenericSession::KeyringPassword(session) => session
                 .send_http(request)
                 .await
-                .map_err(|e| OnyxError::Identity(e.to_string())),
+                .map_err(|e| OnyxError::Auth(e.to_string())),
             GenericSession::FilePassword(session) => session
                 .send_http(request)
                 .await
-                .map_err(|e| OnyxError::Identity(e.to_string())),
+                .map_err(|e| OnyxError::Auth(e.to_string())),
         }
     }
 }
@@ -645,7 +645,7 @@ impl Authenticator {
         let session = match self.auth_store.get_session()? {
             Some(s) => s,
             None => {
-                return Err(OnyxError::AuthStore("not logged in".to_string()));
+                return Err(OnyxError::Auth("not logged in".to_string()));
             }
         };
 
@@ -710,7 +710,7 @@ impl Authenticator {
         let session = match self.auth_store.get_session()? {
             Some(s) => s,
             None => {
-                return Err(OnyxError::AuthStore("not logged in".to_string()));
+                return Err(OnyxError::Auth("not logged in".to_string()));
             }
         };
 
@@ -732,7 +732,7 @@ impl Authenticator {
         if let Some(session) = session {
             Ok(session)
         } else {
-            Err(OnyxError::AuthStore("not logged in".to_string()))
+            Err(OnyxError::Auth("not logged in".to_string()))
         }
     }
 

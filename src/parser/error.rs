@@ -2,10 +2,10 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ParserError {
-    #[error("io error: {0}")]
+    #[error("io: {0}")]
     Io(#[from] std::io::Error),
 
-    #[error("syntax error: {0}")]
+    #[error("syntax: {0}")]
     Syntax(String),
 
     #[error("{0}")]

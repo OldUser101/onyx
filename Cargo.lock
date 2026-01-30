@@ -2818,6 +2818,7 @@ dependencies = [
  "jacquard-oauth",
  "keyring",
  "onyx-lexicons",
+ "owo-colors",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -2923,6 +2924,12 @@ dependencies = [
  "quote",
  "syn 2.0.114",
 ]
+
+[[package]]
+name = "owo-colors"
+version = "4.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c6901729fa79e91a0913333229e9ca5dc725089d1c363b2f4b4760709dc4a52"
 
 [[package]]
 name = "p256"

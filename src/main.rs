@@ -1,3 +1,4 @@
+use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -179,8 +180,7 @@ fn generate_client_version() -> String {
     format!("v{}", env!("CARGO_PKG_VERSION"))
 }
 
-#[tokio::main]
-async fn main() -> Result<(), OnyxError> {
+async fn run_onyx() -> Result<(), OnyxError> {
     let mut matches = get_command().get_matches();
     let args = Args::from_arg_matches_mut(&mut matches).unwrap();
 
@@ -274,4 +274,30 @@ async fn main() -> Result<(), OnyxError> {
     }
 
     Ok(())
+}
+
+fn print_error(e: &OnyxError) {
+    println!("{} {}", "error:".red().bold(), e);
+}
+
+fn handle_error(e: OnyxError) {
+    match e {
+        OnyxError::Auth(_) => {
+            print_error(&e);
+            println!(
+                "{} try logging in with '{}'",
+                "hint:".green().bold(),
+                "onyx auth login".cyan().bold()
+            );
+        }
+        _ => print_error(&e),
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    if let Err(e) = run_onyx().await {
+        handle_error(e);
+        std::process::exit(1);
+    }
 }

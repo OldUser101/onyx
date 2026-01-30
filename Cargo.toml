@@ -13,6 +13,7 @@ jacquard-identity = { version = "0.9.5", features = ["dns"] }
 jacquard-oauth = { version = "0.9.6", features = ["browser-open", "loopback"] }
 keyring = { version = "3.6.3", features = ["linux-native-sync-persistent", "apple-native", "windows-native", "crypto-rust", "vendored"] }
 onyx-lexicons = { path = "crates/lexicons" }
+owo-colors = "4.2.3"
 serde = "1.0.228"
 serde_json = "1.0.149"
 thiserror = "2.0.18"
