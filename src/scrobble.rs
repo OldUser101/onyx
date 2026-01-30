@@ -6,7 +6,6 @@ use jacquard::{CowStr, types::string::Datetime};
 use jacquard_api::fm_teal::alpha::feed::{Artist, play::Play};
 use owo_colors::OwoColorize;
 
-use crate::print_error;
 use crate::{
     LogFormat,
     auth::GenericSession,

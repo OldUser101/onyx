@@ -1,9 +1,10 @@
+use jacquard::{prelude::IdentityResolver, types::did::Did};
 use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use crate::{
-    auth::{Authenticator, GenericSession},
+    auth::{AuthMethod, Authenticator, GenericSession},
     error::OnyxError,
     parser::{ParsedArtist, ParsedTrack},
     scrobble::Scrobbler,
@@ -200,8 +201,45 @@ async fn run_onyx() -> Result<(), OnyxError> {
             }
             AuthCommands::Whoami => {
                 let auth = get_auth()?;
-                let session = auth.get_session_info()?;
-                println!("logged in as {}", session.did);
+                let session_info = auth.get_session_info()?;
+                let session = auth.restore().await;
+
+                let method_str = if session_info.auth == AuthMethod::OAuth {
+                    "oauth"
+                } else {
+                    "app password"
+                };
+
+                if let Ok(session) = session {
+                    println!(
+                        "{} {} {} {}",
+                        "status:".dimmed(),
+                        "logged in".green(),
+                        "via".dimmed(),
+                        method_str.blue()
+                    );
+
+                    let did_doc = session.resolve_did_doc(&Did::new(&session_info.did)?).await;
+                    if let Ok(did_doc) = did_doc
+                        && let Ok(doc) = did_doc.parse()
+                    {
+                        print!("{}", "handles: ".dimmed());
+                        for handle in doc.handles() {
+                            print!("{} ", handle.magenta());
+                        }
+                        println!();
+                    }
+                } else {
+                    println!(
+                        "{} {} {} {}",
+                        "status:".dimmed(),
+                        "logged out".red().bold(),
+                        "via".dimmed(),
+                        method_str.blue()
+                    );
+                }
+
+                println!("{}", format!("did: {}", session_info.did).dimmed());
             }
         },
         Commands::Scrobble { command } => match command {
@@ -254,6 +292,8 @@ async fn run_onyx() -> Result<(), OnyxError> {
                 let session = get_session().await?;
                 let scrobbler = Scrobbler::new("onyx", &version, session);
                 scrobbler.scrobble_track(track).await?;
+
+                println!("{}: track submitted", "success".green().bold());
             }
             ScrobbleCommands::Logfile {
                 log,
@@ -267,7 +307,10 @@ async fn run_onyx() -> Result<(), OnyxError> {
 
                 if delete {
                     std::fs::remove_file(&log)?;
-                    println!("deleted log file {}", log.to_str().unwrap());
+                    println!(
+                        "{}",
+                        format!("deleted log: {}", log.to_str().unwrap()).dimmed()
+                    );
                 }
             }
         },
