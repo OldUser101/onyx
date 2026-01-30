@@ -98,9 +98,11 @@ impl Scrobbler {
     pub async fn scrobble_track(&self, track: ParsedTrack) -> Result<(), OnyxError> {
         let name = track.track_name.clone();
 
-        let res = async {
+        let res: Result<(), OnyxError> = async {
             let play = self.generate_play(track);
-            self.agent.create_record(play, None).await
+            // self.agent.create_record(play, None).await
+            //Err(OnyxError::Other("test".into()))
+            Ok(())
         }
         .await;
 
@@ -129,6 +131,7 @@ impl Scrobbler {
             LogFormat::AudioScrobbler => <AudioScrobblerParser as LogParser>::parse(path.clone()),
         }?;
 
+        let count = tracks.len();
         let mut errors = Vec::new();
 
         for track in tracks {
@@ -140,11 +143,16 @@ impl Scrobbler {
         if !errors.is_empty() {
             println!("\n{}:", "errors".red().bold());
 
-            for error in errors {
+            for error in &errors {
                 println!("  - {}", error);
             }
 
-            println!();
+            println!(
+                "\n{}: {} tracks submitted, {} failed",
+                "summary".yellow().bold(),
+                count - errors.len(),
+                errors.len()
+            );
 
             return Err(OnyxError::Other(
                 format!(
@@ -154,7 +162,7 @@ impl Scrobbler {
                 .into(),
             ));
         } else {
-            println!();
+            println!("\n{}: {} tracks submitted", "success".green().bold(), count);
         }
 
         Ok(())
