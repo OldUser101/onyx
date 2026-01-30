@@ -98,11 +98,9 @@ impl Scrobbler {
     pub async fn scrobble_track(&self, track: ParsedTrack) -> Result<(), OnyxError> {
         let name = track.track_name.clone();
 
-        let res: Result<(), OnyxError> = async {
+        let res = async {
             let play = self.generate_play(track);
-            // self.agent.create_record(play, None).await
-            //Err(OnyxError::Other("test".into()))
-            Ok(())
+            self.agent.create_record(play, None).await
         }
         .await;
 
