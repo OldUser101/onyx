@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use crate::{
     auth::{Authenticator, GenericSession},
     error::OnyxError,
+    parser::{ParsedArtist, ParsedTrack},
     scrobble::Scrobbler,
 };
 use clap::{
@@ -35,6 +36,7 @@ struct Args {
     command: Commands,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Subcommand, Debug)]
 enum Commands {
     /// Authentication related commands
@@ -82,12 +84,61 @@ enum StoreMethod {
     File,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Subcommand, Debug)]
 enum ScrobbleCommands {
     /// Scrobble a single track
     Track {
-        /// Track name
+        /// The name of the track
         track_name: String,
+
+        /// The MusicBrainz ID of the track
+        #[arg(long)]
+        track_mb_id: Option<String>,
+
+        /// The MusicBrainz ID of the recording
+        #[arg(long)]
+        recording_mb_id: Option<String>,
+
+        /// The track duration in seconds
+        #[arg(short, long)]
+        duration: Option<i64>,
+
+        /// The artist name
+        #[arg(short, long)]
+        artist_name: Option<String>,
+
+        /// The MusicBrainz ID of the artist
+        #[arg(long)]
+        artist_mb_id: Option<String>,
+
+        /// The name of the release/album
+        #[arg(short, long)]
+        release_name: Option<String>,
+
+        /// The MusicBrainz ID of the release/album
+        #[arg(long)]
+        release_mb_id: Option<String>,
+
+        /// The URL associated with the track
+        #[arg(short, long)]
+        origin_url: Option<String>,
+
+        /// The ISRC accosiated with the recording
+        #[arg(long)]
+        isrc: Option<String>,
+
+        /// Time the track was played (RFC 3339 format)
+        #[arg(short, long)]
+        played_time: Option<chrono::DateTime<chrono::FixedOffset>>,
+
+        /// Distinguishing information for track variants
+        #[arg(long)]
+        track_discriminant: Option<String>,
+
+        /// Distinguishing information for release variants
+        #[arg(long)]
+        release_discriminant: Option<String>,
     },
 
     /// Scrobble tracks from a log file
@@ -154,6 +205,56 @@ async fn main() -> Result<(), OnyxError> {
             }
         },
         Commands::Scrobble { command } => match command {
+            ScrobbleCommands::Track {
+                track_name,
+                track_mb_id,
+                recording_mb_id,
+                duration,
+                artist_name,
+                artist_mb_id,
+                release_name,
+                release_mb_id,
+                origin_url,
+                isrc,
+                played_time,
+                track_discriminant,
+                release_discriminant,
+            } => {
+                let artist = artist_name.map(|a| ParsedArtist {
+                    artist_name: a,
+                    artist_mb_id,
+                });
+
+                let artists = if let Some(artist) = artist {
+                    Some(vec![artist])
+                } else {
+                    None
+                };
+
+                let track = ParsedTrack {
+                    track_name,
+                    track_mb_id,
+                    recording_mb_id,
+                    duration,
+                    artists,
+                    release_name,
+                    release_mb_id,
+                    origin_url,
+                    isrc,
+                    played_time,
+                    track_discriminant,
+                    release_discriminant,
+                    music_service_base_domain: None,
+                    client_id: None,
+                    artist_names: None,
+                    artist_mb_ids: None,
+                };
+
+                let version = generate_client_version();
+                let session = get_session().await?;
+                let scrobbler = Scrobbler::new("onyx", &version, session);
+                scrobbler.scrobble_track(track).await?;
+            }
             ScrobbleCommands::Logfile {
                 log,
                 log_format,
@@ -169,7 +270,6 @@ async fn main() -> Result<(), OnyxError> {
                     println!("deleted log file {}", log.to_str().unwrap());
                 }
             }
-            _ => {}
         },
     }
 
