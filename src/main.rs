@@ -1,4 +1,3 @@
-use jacquard::{prelude::IdentityResolver, types::did::Did};
 use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -194,15 +193,41 @@ async fn run_onyx() -> Result<(), OnyxError> {
             } => {
                 let auth = get_auth()?;
                 auth.login(&handle, store, password).await?;
+
+                let session_info = auth.get_session_info()?;
+
+                println!(
+                    "{}: logged in {}{}",
+                    "success".green().bold(),
+                    (session_info
+                        .handles
+                        .first()
+                        .unwrap_or(&"(no handle)".to_string()))
+                    .magenta(),
+                    format!(", {}", session_info.did).dimmed()
+                );
             }
             AuthCommands::Logout => {
                 let auth = get_auth()?;
+                let session_info = auth.get_session_info()?;
+
                 auth.logout().await?;
+
+                println!(
+                    "{}: logged out {}{}",
+                    "success".green().bold(),
+                    (session_info
+                        .handles
+                        .first()
+                        .unwrap_or(&"(no handle)".to_string()))
+                    .magenta(),
+                    format!(", {}", session_info.did).dimmed(),
+                );
             }
             AuthCommands::Whoami => {
                 let auth = get_auth()?;
-                let session_info = auth.get_session_info()?;
                 let session = auth.restore().await;
+                let session_info = auth.get_session_info()?;
 
                 let method_str = if session_info.auth == AuthMethod::OAuth {
                     "oauth"
@@ -210,7 +235,7 @@ async fn run_onyx() -> Result<(), OnyxError> {
                     "app password"
                 };
 
-                if let Ok(session) = session {
+                if session.is_ok() {
                     println!(
                         "{} {} {} {}",
                         "status:".dimmed(),
@@ -218,17 +243,6 @@ async fn run_onyx() -> Result<(), OnyxError> {
                         "via".dimmed(),
                         method_str.blue()
                     );
-
-                    let did_doc = session.resolve_did_doc(&Did::new(&session_info.did)?).await;
-                    if let Ok(did_doc) = did_doc
-                        && let Ok(doc) = did_doc.parse()
-                    {
-                        print!("{}", "handles: ".dimmed());
-                        for handle in doc.handles() {
-                            print!("{} ", handle.magenta());
-                        }
-                        println!();
-                    }
                 } else {
                     println!(
                         "{} {} {} {}",
@@ -237,6 +251,17 @@ async fn run_onyx() -> Result<(), OnyxError> {
                         "via".dimmed(),
                         method_str.blue()
                     );
+                }
+
+                print!("{} ", "handles:".dimmed());
+
+                if session_info.handles.is_empty() {
+                    println!("{}", "(no handle)".magenta());
+                } else {
+                    for handle in &session_info.handles {
+                        print!("{} ", handle.magenta());
+                    }
+                    println!();
                 }
 
                 println!("{}", format!("did: {}", session_info.did).dimmed());

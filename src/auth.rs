@@ -20,6 +20,7 @@ use jacquard_oauth::{
     session::{ClientData, ClientSessionData},
 };
 use keyring::Entry;
+use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     fmt::Display,
@@ -221,6 +222,7 @@ pub enum AuthMethod {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthSession {
     pub did: String,
+    pub handles: Vec<String>,
     pub session_id: String,
     pub store: StoreMethod,
     pub auth: AuthMethod,
@@ -256,6 +258,17 @@ impl AuthSessionStore {
         let session_str = serde_json::to_string(session)?;
         let session_path = self.config_dir.join("session.json");
         std::fs::write(&session_path, &session_str)?;
+
+        // set file perms on unix for security (just in case)
+        #[cfg(unix)]
+        {
+            use std::fs;
+            use std::os::unix::fs::PermissionsExt;
+
+            let perms = fs::Permissions::from_mode(0o0600); // -rw-------
+            fs::set_permissions(&session_path, perms)?;
+        }
+
         Ok(())
     }
 
@@ -528,12 +541,26 @@ impl Authenticator {
         Ok(did)
     }
 
+    async fn resolve_handles(&self, ident: &str) -> Result<Vec<Handle<'_>>, OnyxError> {
+        if let Ok(handle) = ident.parse() {
+            return Ok(vec![handle]);
+        }
+
+        let did = Did::new(ident)?;
+        let did_doc = self.resolver.resolve_did_doc(&did).await?;
+        let doc = did_doc.parse()?;
+        Ok(doc.handles())
+    }
+
     pub async fn login(
         &self,
         ident: &str,
         store: StoreMethod,
         password: Option<String>,
     ) -> Result<(), OnyxError> {
+        // ensure previous creds are cleared
+        let _ = self.logout().await;
+
         match password {
             Some(pass) => self.login_app_password(ident, store, pass).await,
             None => self.login_oauth(ident, store).await,
@@ -548,6 +575,14 @@ impl Authenticator {
     ) -> Result<(), OnyxError> {
         let session_id = "session";
         let resolver = PublicResolver::default();
+
+        let handles = self
+            .resolve_handles(ident)
+            .await
+            .unwrap_or(vec![])
+            .iter()
+            .map(|h| h.to_string())
+            .collect();
 
         // TODO: See if there's a clean way to fix this duplication
 
@@ -566,6 +601,7 @@ impl Authenticator {
                 .await?;
             let auth_session = AuthSession {
                 did: auth.did.to_string(),
+                handles,
                 session_id: session_id.to_string(),
                 store: store_method,
                 auth: AuthMethod::AppPassword,
@@ -586,6 +622,7 @@ impl Authenticator {
                 .await?;
             let auth_session = AuthSession {
                 did: auth.did.to_string(),
+                handles,
                 session_id: session_id.to_string(),
                 store: store_method,
                 auth: AuthMethod::AppPassword,
@@ -604,6 +641,14 @@ impl Authenticator {
             config: AtprotoClientMetadata::default_localhost(),
         };
 
+        let handles = self
+            .resolve_handles(ident)
+            .await
+            .unwrap_or(vec![])
+            .iter()
+            .map(|h| h.to_string())
+            .collect();
+
         // There's probably a better way of doing this to avoid duplication,
         // but stores aren't dyn-compatible, and I couldn't be bothered
         if store_method == StoreMethod::Keyring {
@@ -616,6 +661,7 @@ impl Authenticator {
             let session_id = session.data.try_read()?.session_id.clone();
             let auth_session = AuthSession {
                 did: did.to_string(),
+                handles,
                 session_id: session_id.to_string(),
                 store: store_method,
                 auth: AuthMethod::OAuth,
@@ -631,6 +677,7 @@ impl Authenticator {
             let session_id = session.data.try_read()?.session_id.clone();
             let auth_session = AuthSession {
                 did: did.to_string(),
+                handles,
                 session_id: session_id.to_string(),
                 store: store_method,
                 auth: AuthMethod::OAuth,
@@ -713,6 +760,8 @@ impl Authenticator {
                 return Err(OnyxError::Auth("not logged in".to_string()));
             }
         };
+
+        println!("{}", format!("logging out {}", &session.did).dimmed());
 
         let did = Did::new(&session.did)?;
 
