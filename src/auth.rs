@@ -645,7 +645,7 @@ impl Authenticator {
         let session = match self.auth_store.get_session()? {
             Some(s) => s,
             None => {
-                return Err(OnyxError::AuthStore("no session to restore".to_string()));
+                return Err(OnyxError::AuthStore("not logged in".to_string()));
             }
         };
 
@@ -710,7 +710,7 @@ impl Authenticator {
         let session = match self.auth_store.get_session()? {
             Some(s) => s,
             None => {
-                return Err(OnyxError::AuthStore("no session to logout".to_string()));
+                return Err(OnyxError::AuthStore("not logged in".to_string()));
             }
         };
 
@@ -725,6 +725,15 @@ impl Authenticator {
         }
 
         self.auth_store.delete_session()
+    }
+
+    pub fn get_session_info(&self) -> Result<AuthSession, OnyxError> {
+        let session = self.auth_store.get_session()?;
+        if let Some(session) = session {
+            Ok(session)
+        } else {
+            Err(OnyxError::AuthStore("not logged in".to_string()))
+        }
     }
 
     fn get_file_store(&self) -> PathBuf {

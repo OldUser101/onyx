@@ -12,6 +12,7 @@ use std::path::PathBuf;
 
 use crate::{
     auth::{Authenticator, GenericSession},
+    error::OnyxError,
     parser::{ScrobbleLog, ScrobbleRating},
 };
 use clap::{
@@ -39,7 +40,7 @@ fn args_styles() -> Styles {
 #[derive(Parser, Debug)]
 struct Args {
     #[command(subcommand)]
-    command: Option<Commands>,
+    command: Commands,
 }
 
 #[derive(Subcommand, Debug)]
@@ -47,13 +48,13 @@ enum Commands {
     /// Authentication related commands
     Auth {
         #[command(subcommand)]
-        command: Option<AuthCommands>,
+        command: AuthCommands,
     },
 
     /// Scrobble tracks
     Scrobble {
         #[command(subcommand)]
-        command: Option<ScrobbleCommands>,
+        command: ScrobbleCommands,
     },
 }
 
@@ -61,8 +62,8 @@ enum Commands {
 enum AuthCommands {
     /// Login with an ATProto handle or DID
     Login {
-        /// Handle to use for login
-        ident: String,
+        /// Handle or DID for login
+        handle: String,
 
         /// Preferred method of storing credentials
         #[arg(short, long, default_value = "keyring")]
@@ -76,7 +77,7 @@ enum AuthCommands {
     /// Logout of your account
     Logout,
 
-    /// Display user information
+    /// Display logged-in user information
     Whoami,
 }
 
@@ -117,81 +118,61 @@ enum LogFormat {
     AudioScrobbler,
 }
 
+fn get_auth() -> Result<Authenticator, OnyxError> {
+    let config_dir = dirs::config_dir().unwrap().join("onyx");
+    Authenticator::try_new("onyx", &config_dir)
+}
+
+async fn get_session() -> Result<GenericSession, OnyxError> {
+    let auth = get_auth()?;
+    auth.restore().await
+}
+
+fn get_command() -> clap::Command {
+    Args::command().styles(args_styles())
+}
+
 #[tokio::main]
-async fn main() {
-    let mut matches = Args::command().styles(args_styles()).get_matches();
+async fn main() -> Result<(), OnyxError> {
+    let mut matches = get_command().get_matches();
     let args = Args::from_arg_matches_mut(&mut matches).unwrap();
 
     match args.command {
-        Some(Commands::Auth { command }) => match command {
-            Some(AuthCommands::Login {
-                ident,
+        Commands::Auth { command } => match command {
+            AuthCommands::Login {
+                handle,
                 store,
                 password,
-            }) => {
-                let config_dir = dirs::config_dir().unwrap().join("onyx");
-                let auth = Authenticator::try_new("onyx", &config_dir).unwrap();
-
-                if let Err(e) = auth.login(&ident, store, password).await {
-                    println!("{e}");
-                }
+            } => {
+                let auth = get_auth()?;
+                auth.login(&handle, store, password).await?;
             }
-            Some(AuthCommands::Logout) => {
-                let config_dir = dirs::config_dir().unwrap().join("onyx");
-                let auth = Authenticator::try_new("onyx", &config_dir).unwrap();
-
-                if let Err(e) = auth.logout().await {
-                    println!("{e}");
-                }
+            AuthCommands::Logout => {
+                let auth = get_auth()?;
+                auth.logout().await?;
             }
-            _ => {}
+            AuthCommands::Whoami => {
+                let auth = get_auth()?;
+                let session = auth.get_session_info()?;
+                println!("logged in as {}", session.did);
+            }
         },
-        Some(Commands::Scrobble { command }) => match command {
-            Some(ScrobbleCommands::Logfile {
+        Commands::Scrobble { command } => match command {
+            ScrobbleCommands::Logfile {
                 log,
                 log_format,
                 delete,
-            }) => {
-                let config_dir = dirs::config_dir().unwrap().join("onyx");
-                let auth = Authenticator::try_new("onyx", &config_dir).unwrap();
-
-                let session = match auth.restore().await {
-                    Ok(session) => session,
-                    Err(e) => {
-                        println!("{e}");
-                        std::process::exit(1);
-                    }
-                };
-
+            } => {
+                let session = get_session().await?;
                 if let Err(e) = upload_log(session, log).await {
                     println!("{e}");
                 }
             }
             _ => {}
         },
-        _ => {}
     }
 
-    /*
-    match args.command {
-        Some(Commands::Dump { path }) => {
-            if let Err(e) = dump_log(path) {
-                println!("Error: {e}");
-            }
-        }
-        Some(Commands::Upload {
-            handle,
-            path,
-            store,
-        }) => {
-            if let Err(e) = upload_log(handle, path, store).await {
-                println!("Error: {e}");
-            }
-        }
-        _ => {
-            let _ = Args::command().styles(args_styles()).print_long_help();
-        }
-    }*/
+    Ok(())
 }
 
 fn generate_client_agent() -> String {
