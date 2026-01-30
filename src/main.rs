@@ -1,19 +1,10 @@
-use anyhow::Result;
-use chrono::{self, DateTime, FixedOffset, Local, TimeZone, Utc};
-use jacquard::{
-    CowStr,
-    client::{Agent, AgentSessionExt},
-    smol_str::ToSmolStr,
-    types::string::Datetime,
-};
-use onyx_lexicons::fm_teal::alpha::feed::{Artist, play::Play};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use crate::{
     auth::{Authenticator, GenericSession},
     error::OnyxError,
-    parser::{ScrobbleLog, ScrobbleRating},
+    scrobble::Scrobbler,
 };
 use clap::{
     CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum,
@@ -26,6 +17,7 @@ use clap::{
 mod auth;
 mod error;
 mod parser;
+mod scrobble;
 
 fn args_styles() -> Styles {
     Styles::styled()
@@ -95,7 +87,7 @@ enum ScrobbleCommands {
     /// Scrobble a single track
     Track {
         /// Track name
-        track_name: CowStr<'static>,
+        track_name: String,
     },
 
     /// Scrobble tracks from a log file
@@ -132,6 +124,10 @@ fn get_command() -> clap::Command {
     Args::command().styles(args_styles())
 }
 
+fn generate_client_version() -> String {
+    format!("v{}", env!("CARGO_PKG_VERSION"))
+}
+
 #[tokio::main]
 async fn main() -> Result<(), OnyxError> {
     let mut matches = get_command().get_matches();
@@ -163,76 +159,18 @@ async fn main() -> Result<(), OnyxError> {
                 log_format,
                 delete,
             } => {
+                let version = generate_client_version();
                 let session = get_session().await?;
-                if let Err(e) = upload_log(session, log).await {
-                    println!("{e}");
+                let scrobbler = Scrobbler::new("onyx", &version, session);
+                scrobbler.scrobble_logfile(log.clone(), log_format).await?;
+
+                if delete {
+                    std::fs::remove_file(&log)?;
+                    println!("deleted log file {}", log.to_str().unwrap());
                 }
             }
             _ => {}
         },
-    }
-
-    Ok(())
-}
-
-fn generate_client_agent() -> String {
-    format!("onyx/v{}", env!("CARGO_PKG_VERSION"))
-}
-
-async fn upload_log(session: GenericSession, log: PathBuf) -> Result<()> {
-    let log = ScrobbleLog::parse_file(log)?;
-
-    let agent: Agent<_> = Agent::from(session);
-
-    let client_agent = generate_client_agent();
-
-    for entry in log.entries {
-        if entry.rating == ScrobbleRating::Skipped {
-            continue;
-        }
-
-        let dt: DateTime<FixedOffset> = if let Some(tz) = &log.timezone
-            && tz == "UTC"
-        {
-            Utc.timestamp_opt(entry.timestamp, 0).unwrap().into()
-        } else {
-            Local.timestamp_opt(entry.timestamp, 0).unwrap().into()
-        };
-
-        let mut artists = Vec::new();
-
-        let artist = Artist {
-            artist_name: CowStr::Borrowed(&entry.artist_name),
-            artist_mb_id: None,
-            extra_data: None,
-        };
-
-        artists.push(artist);
-
-        let play = Play {
-            track_name: CowStr::Borrowed(&entry.track_name),
-            duration: Some(entry.duration),
-            music_service_base_domain: Some(CowStr::Borrowed("local")),
-            played_time: Some(Datetime::new(dt)),
-            submission_client_agent: Some(CowStr::Borrowed(&client_agent)),
-            artists: Some(artists),
-            release_name: entry
-                .album_name
-                .map(|name| CowStr::Owned(name.to_smolstr())),
-            track_mb_id: entry.mb_track_id.map(|id| CowStr::Owned(id.to_smolstr())),
-            artist_mb_ids: None,
-            artist_names: None,
-            isrc: None,
-            origin_url: None,
-            recording_mb_id: None,
-            release_discriminant: None,
-            release_mb_id: None,
-            track_discriminant: None,
-            extra_data: None,
-        };
-
-        let _ = agent.create_record(play, None).await?;
-        println!("[✓] {}", entry.track_name);
     }
 
     Ok(())

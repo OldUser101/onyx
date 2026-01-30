@@ -1,7 +1,13 @@
-use jacquard::{client::SessionStoreError, error::ClientError, types::string::AtStrError};
+use jacquard::{
+    client::{AgentError, SessionStoreError},
+    error::ClientError,
+    types::string::AtStrError,
+};
 use jacquard_identity::resolver::IdentityError;
 use jacquard_oauth::error::OAuthError;
 use thiserror::Error;
+
+use crate::parser::ParserError;
 
 pub trait MapErrExt<T> {
     fn map_session_store_err(self) -> Result<T, SessionStoreError>;
@@ -35,6 +41,12 @@ pub enum OnyxError {
 
     #[error("client error: {0}")]
     ClientError(String),
+
+    #[error("agent error: {0}")]
+    AgentError(String),
+
+    #[error("parser error: {0}")]
+    ParserError(String),
 
     #[error(transparent)]
     Other(#[from] Box<dyn std::error::Error + Send + Sync>),
@@ -85,5 +97,17 @@ impl From<OAuthError> for OnyxError {
 impl From<ClientError> for OnyxError {
     fn from(err: ClientError) -> Self {
         OnyxError::ClientError(err.to_string())
+    }
+}
+
+impl From<AgentError> for OnyxError {
+    fn from(err: AgentError) -> Self {
+        OnyxError::AgentError(err.to_string())
+    }
+}
+
+impl From<ParserError> for OnyxError {
+    fn from(err: ParserError) -> Self {
+        OnyxError::ParserError(err.to_string())
     }
 }

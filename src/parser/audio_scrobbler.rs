@@ -1,33 +1,32 @@
+use chrono::{DateTime, FixedOffset, Local, TimeZone, Utc};
 use std::{
     fs::File,
     io::{BufRead, BufReader},
     path::PathBuf,
 };
 
-use anyhow::{Result, anyhow};
+use crate::parser::{LogParser, ParsedArtist, ParsedTrack, ParserError};
 
 #[derive(Debug)]
-pub struct ScrobbleLog {
-    pub version: String,
-    pub timezone: Option<String>,
-    pub client_id: Option<String>,
-    pub entries: Vec<Scrobble>,
+pub struct AudioScrobblerParser {
+    timezone: Option<String>,
+    client_id: Option<String>,
+    entries: Vec<Scrobble>,
 }
 
 #[derive(Debug)]
-pub struct Scrobble {
-    pub artist_name: String,
-    pub album_name: Option<String>,
-    pub track_name: String,
-    pub track_num: Option<i64>,
-    pub duration: i64,
-    pub rating: ScrobbleRating,
-    pub timestamp: i64,
-    pub mb_track_id: Option<String>,
+struct Scrobble {
+    artist_name: String,
+    album_name: Option<String>,
+    track_name: String,
+    duration: i64,
+    rating: ScrobbleRating,
+    timestamp: i64,
+    mb_track_id: Option<String>,
 }
 
 #[derive(Debug, PartialEq)]
-pub enum ScrobbleRating {
+enum ScrobbleRating {
     Listened,
     Skipped,
 }
@@ -40,7 +39,7 @@ enum LogHeaderEntry {
     Unknown(()),
 }
 
-impl ScrobbleLog {
+impl AudioScrobblerParser {
     fn parse_header(line: &str) -> LogHeaderEntry {
         if let Some(rest) = line.strip_prefix("#AUDIOSCROBBLER/") {
             return LogHeaderEntry::Version(rest.to_owned());
@@ -65,17 +64,15 @@ impl ScrobbleLog {
         }
     }
 
-    fn parse_optional_i64(s: &str) -> Option<i64> {
-        if s.is_empty() { None } else { s.parse().ok() }
-    }
-
-    fn parse_rating(s: &str) -> Result<ScrobbleRating> {
+    fn parse_rating(s: &str) -> Result<ScrobbleRating, ParserError> {
         if s == "L" {
             Ok(ScrobbleRating::Listened)
         } else if s == "S" {
             Ok(ScrobbleRating::Skipped)
         } else {
-            Err(anyhow!("Entry rating must be 'L' or 'S'"))
+            Err(ParserError::Syntax(
+                "Entry rating must be 'L' or 'S'".to_string(),
+            ))
         }
     }
 
@@ -83,7 +80,7 @@ impl ScrobbleLog {
         if s == "UNKNOWN" { None } else { Some(s) }
     }
 
-    fn parse_entry(line: &str, version: &String) -> Result<Scrobble> {
+    fn parse_entry(line: &str, version: &String) -> Result<Scrobble, ParserError> {
         let fields: Vec<&str> = line.split('\t').collect();
 
         let mb_track_id = if version == "1.1" {
@@ -96,15 +93,18 @@ impl ScrobbleLog {
             artist_name: fields[0].to_string(),
             album_name: Self::parse_optional_string(fields[1]),
             track_name: fields[2].to_string(),
-            track_num: Self::parse_optional_i64(fields[3]),
-            duration: fields[4].parse()?,
+            duration: fields[4]
+                .parse()
+                .map_err(|e: std::num::ParseIntError| ParserError::Syntax(e.to_string()))?,
             rating: Self::parse_rating(fields[5])?,
-            timestamp: fields[6].parse()?,
+            timestamp: fields[6]
+                .parse()
+                .map_err(|e: std::num::ParseIntError| ParserError::Syntax(e.to_string()))?,
             mb_track_id,
         })
     }
 
-    pub fn parse<R>(mut reader: R) -> Result<Self>
+    pub fn parse<R>(mut reader: R) -> Result<Self, ParserError>
     where
         R: BufRead,
     {
@@ -137,7 +137,8 @@ impl ScrobbleLog {
             }
         }
 
-        let version = version.ok_or_else(|| anyhow!("Log version not specified"))?;
+        let version =
+            version.ok_or_else(|| ParserError::Other("Log version not specified".to_string()))?;
 
         // Parse entries
         if !line.is_empty() && !line.starts_with('#') {
@@ -162,17 +163,66 @@ impl ScrobbleLog {
         }
 
         Ok(Self {
-            version,
             timezone,
             client_id,
             entries,
         })
     }
+}
 
-    pub fn parse_file(path: PathBuf) -> Result<Self> {
-        let file = File::open(path)?;
+impl LogParser for AudioScrobblerParser {
+    fn parse(log: PathBuf) -> Result<Vec<ParsedTrack>, ParserError> {
+        let file = File::open(log)?;
         let reader = BufReader::new(file);
-        Self::parse(reader)
+        let log = Self::parse(reader)?;
+
+        let mut tracks = Vec::new();
+
+        for entry in log.entries {
+            if entry.rating == ScrobbleRating::Skipped {
+                continue;
+            }
+
+            let dt: DateTime<FixedOffset> = if let Some(tz) = &log.timezone
+                && tz == "UTC"
+            {
+                Utc.timestamp_opt(entry.timestamp, 0).unwrap().into()
+            } else {
+                Local.timestamp_opt(entry.timestamp, 0).unwrap().into()
+            };
+
+            let mut artists = Vec::new();
+
+            let artist = ParsedArtist {
+                artist_name: entry.artist_name,
+                artist_mb_id: None,
+            };
+
+            artists.push(artist);
+
+            let track = ParsedTrack {
+                track_name: entry.track_name,
+                duration: Some(entry.duration),
+                played_time: Some(dt),
+                client_id: log.client_id.clone(),
+                artists: Some(artists),
+                release_name: entry.album_name,
+                track_mb_id: entry.mb_track_id,
+                music_service_base_domain: None,
+                artist_mb_ids: None,
+                artist_names: None,
+                isrc: None,
+                origin_url: None,
+                recording_mb_id: None,
+                release_mb_id: None,
+                track_discriminant: None,
+                release_discriminant: None,
+            };
+
+            tracks.push(track);
+        }
+
+        Ok(tracks)
     }
 }
 
@@ -182,7 +232,7 @@ mod tests {
 
     #[test]
     fn test_parse_header_version() {
-        let header = ScrobbleLog::parse_header("#AUDIOSCROBBLER/1.0");
+        let header = AudioScrobblerParser::parse_header("#AUDIOSCROBBLER/1.0");
 
         if let LogHeaderEntry::Version(v) = header {
             assert_eq!(v, "1.0");
@@ -193,7 +243,7 @@ mod tests {
 
     #[test]
     fn test_parse_header_time_zone() {
-        let header = ScrobbleLog::parse_header("#TZ/UTC");
+        let header = AudioScrobblerParser::parse_header("#TZ/UTC");
 
         if let LogHeaderEntry::TimeZone(tz) = header {
             assert_eq!(tz, "UTC");
@@ -204,7 +254,7 @@ mod tests {
 
     #[test]
     fn test_parse_header_client_id() {
-        let header = ScrobbleLog::parse_header("#CLIENT/Test Client");
+        let header = AudioScrobblerParser::parse_header("#CLIENT/Test Client");
 
         if let LogHeaderEntry::ClientId(id) = header {
             assert_eq!(id, "Test Client");
@@ -215,7 +265,7 @@ mod tests {
 
     #[test]
     fn test_parse_header_unknown() {
-        let header = ScrobbleLog::parse_header("#SOMETHING ELSE");
+        let header = AudioScrobblerParser::parse_header("#SOMETHING ELSE");
 
         if let LogHeaderEntry::Unknown(s) = header {
             assert_eq!(s, ());
@@ -228,9 +278,8 @@ mod tests {
     fn test_parse_entry() {
         let str_log = "#AUDIOSCROBBLER/1.1\nArtist 1\t\tTrack 1\t5\t456\tL\t123456789\tid_0";
         let cur = std::io::Cursor::new(str_log);
-        let log = ScrobbleLog::parse(cur).unwrap();
+        let log = AudioScrobblerParser::parse(cur).unwrap();
 
-        assert_eq!(log.version, "1.1");
         assert_eq!(log.timezone, None);
         assert_eq!(log.client_id, None);
 
@@ -238,7 +287,6 @@ mod tests {
         assert_eq!(log.entries[0].artist_name, "Artist 1");
         assert_eq!(log.entries[0].album_name, None);
         assert_eq!(log.entries[0].track_name, "Track 1");
-        assert_eq!(log.entries[0].track_num, Some(5));
         assert_eq!(log.entries[0].duration, 456);
         assert_eq!(log.entries[0].rating, ScrobbleRating::Listened);
         assert_eq!(log.entries[0].timestamp, 123456789);
