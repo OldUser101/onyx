@@ -30,7 +30,7 @@ pub enum OnyxError {
     #[error("parse: {0}")]
     Parse(String),
 
-    #[error("unknown: {0}")]
+    #[error("{0}")]
     Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 

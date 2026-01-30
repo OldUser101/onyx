@@ -4,7 +4,9 @@ use jacquard::client::{Agent, AgentSessionExt};
 use jacquard::smol_str::ToSmolStr;
 use jacquard::{CowStr, types::string::Datetime};
 use jacquard_api::fm_teal::alpha::feed::{Artist, play::Play};
+use owo_colors::OwoColorize;
 
+use crate::print_error;
 use crate::{
     LogFormat,
     auth::GenericSession,
@@ -95,9 +97,20 @@ impl Scrobbler {
 
     pub async fn scrobble_track(&self, track: ParsedTrack) -> Result<(), OnyxError> {
         let name = track.track_name.clone();
-        let play = self.generate_play(track);
-        let _ = self.agent.create_record(play, None).await?;
-        println!("[✓] {}", name);
+
+        let res = async {
+            let play = self.generate_play(track);
+            self.agent.create_record(play, None).await
+        }
+        .await;
+
+        if let Err(e) = res {
+            println!("{} {}", "[✗]".red().bold(), name);
+            return Err(OnyxError::Other(format!("{}, for '{}'", e, name).into()));
+        } else {
+            println!("{} {}", "[✓]".green().bold(), name);
+        }
+
         Ok(())
     }
 
@@ -106,15 +119,43 @@ impl Scrobbler {
         path: PathBuf,
         format: LogFormat,
     ) -> Result<(), OnyxError> {
+        println!(
+            "{} {}",
+            "scrobbling log:".dimmed(),
+            path.to_str().unwrap().dimmed()
+        );
+
         let tracks = match format {
             LogFormat::AudioScrobbler => <AudioScrobblerParser as LogParser>::parse(path.clone()),
         }?;
 
+        let mut errors = Vec::new();
+
         for track in tracks {
-            self.scrobble_track(track).await?;
+            if let Err(e) = self.scrobble_track(track).await {
+                errors.push(e);
+            }
         }
 
-        println!("\n[✓] {}", path.to_str().unwrap());
+        if !errors.is_empty() {
+            println!("\n{}:", "errors".red().bold());
+
+            for error in errors {
+                println!("  - {}", error);
+            }
+
+            println!();
+
+            return Err(OnyxError::Other(
+                format!(
+                    "failed to scrobble log file {}, see errors above",
+                    path.to_str().unwrap()
+                )
+                .into(),
+            ));
+        } else {
+            println!();
+        }
 
         Ok(())
     }

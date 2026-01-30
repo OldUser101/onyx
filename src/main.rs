@@ -277,7 +277,7 @@ async fn run_onyx() -> Result<(), OnyxError> {
 }
 
 fn print_error(e: &OnyxError) {
-    println!("{} {}", "error:".red().bold(), e);
+    println!("{}: {}", "error".red().bold(), e);
 }
 
 fn handle_error(e: OnyxError) {
@@ -285,8 +285,8 @@ fn handle_error(e: OnyxError) {
         OnyxError::Auth(_) => {
             print_error(&e);
             println!(
-                "{} try logging in with '{}'",
-                "hint:".green().bold(),
+                "{}: try logging in with '{}'",
+                "hint".green().bold(),
                 "onyx auth login".cyan().bold()
             );
         }
