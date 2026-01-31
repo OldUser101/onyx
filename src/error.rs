@@ -1,7 +1,7 @@
 use jacquard::{
     client::{AgentError, SessionStoreError},
     error::ClientError,
-    types::string::AtStrError,
+    types::{string::AtStrError, uri::UriError},
 };
 use jacquard_identity::resolver::IdentityError;
 use jacquard_oauth::error::OAuthError;
@@ -84,6 +84,12 @@ impl From<ClientError> for OnyxError {
 
 impl From<AgentError> for OnyxError {
     fn from(err: AgentError) -> Self {
+        OnyxError::Other(err.to_string().into())
+    }
+}
+
+impl From<UriError> for OnyxError {
+    fn from(err: UriError) -> Self {
         OnyxError::Other(err.to_string().into())
     }
 }

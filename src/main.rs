@@ -7,6 +7,7 @@ use crate::{
     error::OnyxError,
     parser::{ParsedArtist, ParsedTrack},
     scrobble::Scrobbler,
+    status::StatusManager,
 };
 use clap::{
     CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum,
@@ -20,6 +21,7 @@ mod auth;
 mod error;
 mod parser;
 mod scrobble;
+mod status;
 
 fn args_styles() -> Styles {
     Styles::styled()
@@ -50,6 +52,12 @@ enum Commands {
     Scrobble {
         #[command(subcommand)]
         command: ScrobbleCommands,
+    },
+
+    /// View and manage listening status
+    Status {
+        #[command(subcommand)]
+        command: StatusCommands,
     },
 }
 
@@ -160,6 +168,15 @@ enum ScrobbleCommands {
 enum LogFormat {
     /// Use AudioScrobbler log format
     AudioScrobbler,
+}
+
+#[derive(Subcommand, Debug)]
+enum StatusCommands {
+    Show {
+        /// Handle or DID to query
+        #[arg(long)]
+        handle: Option<String>,
+    },
 }
 
 fn get_auth() -> Result<Authenticator, OnyxError> {
@@ -337,6 +354,22 @@ async fn run_onyx() -> Result<(), OnyxError> {
                         format!("deleted log: {}", log.to_str().unwrap()).dimmed()
                     );
                 }
+            }
+        },
+        Commands::Status { command } => match command {
+            StatusCommands::Show { handle } => {
+                let ident = match handle {
+                    Some(s) => s,
+                    None => {
+                        let auth = get_auth()?;
+                        let session_info = auth.get_session_info()?;
+                        session_info.did
+                    }
+                };
+
+                let status_man = StatusManager::new(&ident);
+                let status = status_man.get_status().await?;
+                status_man.display_status(&status);
             }
         },
     }
