@@ -172,10 +172,15 @@ enum LogFormat {
 
 #[derive(Subcommand, Debug)]
 enum StatusCommands {
+    /// Display user playing status
     Show {
         /// Handle or DID to query
         #[arg(long)]
         handle: Option<String>,
+
+        /// Display raw status without processing
+        #[arg(long, action)]
+        raw: bool,
     },
 }
 
@@ -357,7 +362,7 @@ async fn run_onyx() -> Result<(), OnyxError> {
             }
         },
         Commands::Status { command } => match command {
-            StatusCommands::Show { handle } => {
+            StatusCommands::Show { handle, raw } => {
                 let ident = match handle {
                     Some(s) => s,
                     None => {
@@ -369,7 +374,7 @@ async fn run_onyx() -> Result<(), OnyxError> {
 
                 let status_man = StatusManager::new(&ident);
                 let status = status_man.get_status().await?;
-                status_man.display_status(&status);
+                status_man.display_status(&status, raw);
             }
         },
     }

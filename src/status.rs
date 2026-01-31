@@ -117,7 +117,7 @@ impl StatusManager {
         })
     }
 
-    pub fn display_status(&self, status: &TrackStatus) {
+    pub fn display_status(&self, status: &TrackStatus, raw: bool) {
         // if both track name and artists are blank, probably nothing's playing
         if status.track_name.is_empty() && status.artists.is_empty() {
             println!("{}", "nothing playing right now".dimmed());
@@ -145,30 +145,43 @@ impl StatusManager {
         }
 
         if let Some(played_time) = &status.played_time {
-            println!(
-                "{} {}",
-                "played:".dimmed(),
-                played_time.format("%Y-%m-%d %H:%M:%S %:z").yellow()
-            );
+            if raw {
+                println!(
+                    "{} {}",
+                    "played:".dimmed(),
+                    played_time.format("%Y-%m-%d %H:%M:%S %:z").yellow()
+                );
+            } else {
+                let local_dt = played_time.with_timezone(&chrono::Local);
+                println!(
+                    "{} {}",
+                    "played:".dimmed(),
+                    local_dt.format("%Y-%m-%d %H:%M:%S").yellow()
+                );
+            }
         }
 
         if let Some(duration) = status.duration {
-            let hours = duration / 3600;
-            let minutes = (duration - (hours * 3600)) / 60;
-            let seconds = duration - (minutes * 60);
+            if raw {
+                println!("{} {}", "duration:".dimmed(), duration.green());
+            } else {
+                let hours = duration / 3600;
+                let minutes = (duration - (hours * 3600)) / 60;
+                let seconds = duration - (minutes * 60);
 
-            let mut duration_str = "".to_string();
-            if hours > 0 {
-                duration_str = format!("{:02}:", hours);
-            }
-            if minutes > 0 || hours > 0 {
-                duration_str = format!("{}{:02}:", duration_str, minutes);
-            }
-            if seconds > 0 || minutes > 0 || hours > 0 {
-                duration_str = format!("{}{:02}", duration_str, seconds);
-            }
+                let mut duration_str = "".to_string();
+                if hours > 0 {
+                    duration_str = format!("{:02}:", hours);
+                }
+                if minutes > 0 || hours > 0 {
+                    duration_str = format!("{}{:02}:", duration_str, minutes);
+                }
+                if seconds > 0 || minutes > 0 || hours > 0 {
+                    duration_str = format!("{}{:02}", duration_str, seconds);
+                }
 
-            println!("{} {}", "duration:".dimmed(), duration_str.green());
+                println!("{} {}", "duration:".dimmed(), duration_str.green());
+            }
         }
     }
 }
