@@ -2,15 +2,11 @@ use chrono::{DateTime, FixedOffset};
 use jacquard::{
     client::{AgentSessionExt, BasicClient},
     prelude::IdentityResolver,
-    types::{
-        did::Did,
-        string::{Datetime, Handle},
-    },
+    types::{did::Did, string::Handle},
 };
 use jacquard_api::fm_teal::alpha::actor::status as fm_teal_status;
 use jacquard_identity::{JacquardResolver, PublicResolver};
 use owo_colors::OwoColorize;
-use serde_json::json;
 
 use crate::error::OnyxError;
 
@@ -117,16 +113,16 @@ impl StatusManager {
         })
     }
 
-    pub fn display_status(&self, status: &TrackStatus, raw: bool) {
+    pub fn display_status(&self, status: &TrackStatus, raw: bool, full: bool) {
         // if both track name and artists are blank, probably nothing's playing
-        if status.track_name.is_empty() && status.artists.is_empty() {
+        if status.track_name.is_empty() && status.artists.is_empty() && !raw {
             println!("{}", "nothing playing right now".dimmed());
             return;
         }
 
         println!("{} {}", "track:".dimmed(), status.track_name.blue());
 
-        if !status.artists.is_empty() {
+        if !status.artists.is_empty() || raw {
             print!("{} ", "artists:".dimmed());
 
             for i in 0..status.artists.len() {
@@ -182,6 +178,12 @@ impl StatusManager {
 
                 println!("{} {}", "duration:".dimmed(), duration_str.green());
             }
+        }
+
+        if let Some(client) = &status.client_id
+            && full
+        {
+            println!("{} {}", "client:".dimmed(), client.cyan());
         }
     }
 }

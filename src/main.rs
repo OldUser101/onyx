@@ -179,8 +179,12 @@ enum StatusCommands {
         handle: Option<String>,
 
         /// Display raw status without processing
-        #[arg(long, action)]
+        #[arg(short, long, action)]
         raw: bool,
+
+        /// Display all status fields
+        #[arg(short, long, action)]
+        full: bool,
     },
 }
 
@@ -362,7 +366,7 @@ async fn run_onyx() -> Result<(), OnyxError> {
             }
         },
         Commands::Status { command } => match command {
-            StatusCommands::Show { handle, raw } => {
+            StatusCommands::Show { handle, raw, full } => {
                 let ident = match handle {
                     Some(s) => s,
                     None => {
@@ -374,7 +378,7 @@ async fn run_onyx() -> Result<(), OnyxError> {
 
                 let status_man = StatusManager::new(&ident);
                 let status = status_man.get_status().await?;
-                status_man.display_status(&status, raw);
+                status_man.display_status(&status, raw, full);
             }
         },
     }
