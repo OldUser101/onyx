@@ -228,7 +228,7 @@ async fn run_onyx() -> Result<(), OnyxError> {
                     (session_info
                         .handles
                         .first()
-                        .unwrap_or(&"(no handle)".to_string()))
+                        .unwrap_or(&"(no handle)".red().to_string()))
                     .magenta(),
                     format!(", {}", session_info.did).dimmed()
                 );
@@ -240,14 +240,13 @@ async fn run_onyx() -> Result<(), OnyxError> {
                 auth.logout().await?;
 
                 println!(
-                    "{}: logged out {}{}",
+                    "{}: logged out {}, {}",
                     "success".green().bold(),
                     (session_info
                         .handles
                         .first()
-                        .unwrap_or(&"(no handle)".to_string()))
-                    .magenta(),
-                    format!(", {}", session_info.did).dimmed(),
+                        .unwrap_or(&"(no handle)".red().to_string())),
+                    session_info.did,
                 );
             }
             AuthCommands::Whoami => {
@@ -262,35 +261,23 @@ async fn run_onyx() -> Result<(), OnyxError> {
                 };
 
                 if session.is_ok() {
-                    println!(
-                        "{} {} {} {}",
-                        "status:".dimmed(),
-                        "logged in".green(),
-                        "via".dimmed(),
-                        method_str.blue()
-                    );
+                    println!("status: {} via {}", "logged in".green().bold(), method_str);
                 } else {
-                    println!(
-                        "{} {} {} {}",
-                        "status:".dimmed(),
-                        "logged out".red().bold(),
-                        "via".dimmed(),
-                        method_str.blue()
-                    );
+                    println!("status: {} via {}", "logged out".red().bold(), method_str);
                 }
 
-                print!("{} ", "handles:".dimmed());
+                print!("handles: ");
 
                 if session_info.handles.is_empty() {
-                    println!("{}", "(no handle)".magenta());
+                    println!("{}", "(no handle)".red());
                 } else {
                     for handle in &session_info.handles {
-                        print!("{} ", handle.magenta());
+                        print!("{} ", handle);
                     }
                     println!();
                 }
 
-                println!("{}", format!("did: {}", session_info.did).dimmed());
+                println!("did: {}", session_info.did);
             }
         },
         Commands::Scrobble { command } => match command {

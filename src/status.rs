@@ -116,20 +116,20 @@ impl StatusManager {
     pub fn display_status(&self, status: &TrackStatus, raw: bool, full: bool) {
         // if both track name and artists are blank, probably nothing's playing
         if status.track_name.is_empty() && status.artists.is_empty() && !raw {
-            println!("{}", "nothing playing right now".dimmed());
+            println!("nothing playing right now");
             return;
         }
 
-        println!("{} {}", "track:".dimmed(), status.track_name.blue());
+        println!("track: {}", status.track_name);
 
         if !status.artists.is_empty() || raw {
-            print!("{} ", "artists:".dimmed());
+            print!("artists: ");
 
             for i in 0..status.artists.len() {
-                print!("{}", status.artists[i].artist_name.magenta());
+                print!("{}", status.artists[i].artist_name);
 
                 if i != status.artists.len() - 1 {
-                    print!("{} ", ",".dimmed());
+                    print!(", ");
                 }
             }
 
@@ -137,29 +137,21 @@ impl StatusManager {
         }
 
         if let Some(release) = &status.release_name {
-            println!("{} {}", "release:".dimmed(), release.red());
+            println!("release: {}", release);
         }
 
         if let Some(played_time) = &status.played_time {
             if raw {
-                println!(
-                    "{} {}",
-                    "played:".dimmed(),
-                    played_time.format("%Y-%m-%d %H:%M:%S %:z").yellow()
-                );
+                println!("played: {}", played_time.format("%Y-%m-%d %H:%M:%S %:z"));
             } else {
                 let local_dt = played_time.with_timezone(&chrono::Local);
-                println!(
-                    "{} {}",
-                    "played:".dimmed(),
-                    local_dt.format("%Y-%m-%d %H:%M:%S").yellow()
-                );
+                println!("played: {}", local_dt.format("%Y-%m-%d %H:%M:%S"));
             }
         }
 
         if let Some(duration) = status.duration {
             if raw {
-                println!("{} {}", "duration:".dimmed(), duration.green());
+                println!("duration: {}", duration);
             } else {
                 let hours = duration / 3600;
                 let minutes = (duration - (hours * 3600)) / 60;
@@ -176,14 +168,14 @@ impl StatusManager {
                     duration_str = format!("{}{:02}", duration_str, seconds);
                 }
 
-                println!("{} {}", "duration:".dimmed(), duration_str.green());
+                println!("duration: {}", duration_str);
             }
         }
 
         if let Some(client) = &status.client_id
             && full
         {
-            println!("{} {}", "client:".dimmed(), client.cyan());
+            println!("client: {}", client);
         }
     }
 }
