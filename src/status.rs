@@ -65,11 +65,29 @@ impl StatusManager {
 
         println!("track: {}", status.item.track_name);
 
+        if let Some(track_id) = &status.item.track_mb_id
+            && full
+        {
+            println!("track id: {}", track_id);
+        }
+
+        if let Some(recording_id) = &status.item.recording_mb_id
+            && full
+        {
+            println!("recording id: {}", recording_id);
+        }
+
         if !status.item.artists.is_empty() || raw {
             print!("artists: ");
 
             for i in 0..status.item.artists.len() {
                 print!("{}", status.item.artists[i].artist_name);
+
+                if let Some(artist_id) = &status.item.artists[i].artist_mb_id
+                    && full
+                {
+                    print!(" [{}]", artist_id);
+                }
 
                 if i != status.item.artists.len() - 1 {
                     print!(", ");
@@ -81,6 +99,18 @@ impl StatusManager {
 
         if let Some(release) = &status.item.release_name {
             println!("release: {}", release);
+        }
+
+        if let Some(release_id) = &status.item.release_mb_id
+            && full
+        {
+            println!("release id: {}", release_id);
+        }
+
+        if let Some(isrc) = &status.item.isrc
+            && full
+        {
+            println!("isrc: {}", isrc);
         }
 
         if let Some(played_time) = &status.item.played_time {
@@ -113,6 +143,12 @@ impl StatusManager {
 
                 println!("duration: {}", duration_str);
             }
+        }
+
+        if let Some(service) = &status.item.music_service_base_domain
+            && full
+        {
+            println!("service: {}", service);
         }
 
         if let Some(client) = &status.item.submission_client_agent
