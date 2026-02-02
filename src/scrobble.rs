@@ -1,16 +1,15 @@
 use std::path::PathBuf;
 
 use jacquard::client::{Agent, AgentSessionExt};
-use jacquard::smol_str::ToSmolStr;
-use jacquard::{CowStr, types::string::Datetime};
-use jacquard_api::fm_teal::alpha::feed::{Artist, play::Play};
+use jacquard_api::fm_teal::alpha::feed as fm_teal_feed;
 use owo_colors::OwoColorize;
 
 use crate::{
     LogFormat,
     auth::GenericSession,
     error::OnyxError,
-    parser::{LogParser, ParsedArtist, ParsedTrack, audio_scrobbler::AudioScrobblerParser},
+    parser::{LogParser, audio_scrobbler::AudioScrobblerParser},
+    record::Play,
 };
 
 pub struct Scrobbler {
@@ -37,68 +36,13 @@ impl Scrobbler {
         }
     }
 
-    fn generate_artist(&self, artist: ParsedArtist) -> Artist<'_> {
-        Artist {
-            artist_name: CowStr::Owned(artist.artist_name.to_smolstr()),
-            artist_mb_id: artist.artist_mb_id.map(|s| CowStr::Owned(s.to_smolstr())),
-            extra_data: None,
-        }
-    }
-
-    fn generate_play(&self, track: ParsedTrack) -> Play<'_> {
-        let artist_names: Option<Vec<CowStr>> = track.artist_names.map(|v| {
-            v.into_iter()
-                .map(|s| CowStr::Owned(s.to_smolstr()))
-                .collect()
-        });
-
-        let artist_mb_ids: Option<Vec<CowStr>> = track.artist_mb_ids.map(|v| {
-            v.into_iter()
-                .map(|s| CowStr::Owned(s.to_smolstr()))
-                .collect()
-        });
-
-        let artists: Option<Vec<Artist>> = track
-            .artists
-            .map(|v| v.into_iter().map(|a| self.generate_artist(a)).collect());
-
-        Play {
-            track_name: CowStr::Owned(track.track_name.to_smolstr()),
-            track_mb_id: track.track_mb_id.map(|s| CowStr::Owned(s.to_smolstr())),
-            recording_mb_id: track.recording_mb_id.map(|s| CowStr::Owned(s.to_smolstr())),
-            duration: track.duration,
-            artist_names,
-            artist_mb_ids,
-            artists,
-            release_name: track.release_name.map(|s| CowStr::Owned(s.to_smolstr())),
-            release_mb_id: track.release_mb_id.map(|s| CowStr::Owned(s.to_smolstr())),
-            isrc: track.isrc.map(|s| CowStr::Owned(s.to_smolstr())),
-            origin_url: track.origin_url.map(|s| CowStr::Owned(s.to_smolstr())),
-            music_service_base_domain: Some(
-                track
-                    .music_service_base_domain
-                    .map(|s| CowStr::Owned(s.to_smolstr()))
-                    .unwrap_or(CowStr::Owned("local".to_smolstr())),
-            ),
-            submission_client_agent: Some(CowStr::Owned(
-                self.generate_client_agent(track.client_id).to_smolstr(),
-            )),
-            played_time: track.played_time.map(Datetime::new),
-            track_discriminant: track
-                .track_discriminant
-                .map(|s| CowStr::Owned(s.to_smolstr())),
-            release_discriminant: track
-                .release_discriminant
-                .map(|s| CowStr::Owned(s.to_smolstr())),
-            extra_data: None,
-        }
-    }
-
-    pub async fn scrobble_track(&self, track: ParsedTrack) -> Result<(), OnyxError> {
+    pub async fn scrobble_track(&self, mut track: Play) -> Result<(), OnyxError> {
         let name = track.track_name.clone();
 
         let res = async {
-            let play = self.generate_play(track);
+            track.submission_client_agent =
+                Some(self.generate_client_agent(track.submission_client_agent));
+            let play: fm_teal_feed::play::Play = track.into();
             self.agent.create_record(play, None).await
         }
         .await;

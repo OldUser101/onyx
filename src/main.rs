@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use crate::{
     auth::{AuthMethod, Authenticator, GenericSession},
     error::OnyxError,
-    parser::{ParsedArtist, ParsedTrack},
+    record::{Artist, Play},
     scrobble::Scrobbler,
     status::StatusManager,
 };
@@ -20,6 +20,7 @@ use clap::{
 mod auth;
 mod error;
 mod parser;
+mod record;
 mod scrobble;
 mod status;
 
@@ -296,7 +297,7 @@ async fn run_onyx() -> Result<(), OnyxError> {
                 track_discriminant,
                 release_discriminant,
             } => {
-                let artist = artist_name.map(|a| ParsedArtist {
+                let artist = artist_name.map(|a| Artist {
                     artist_name: a,
                     artist_mb_id,
                 });
@@ -307,7 +308,7 @@ async fn run_onyx() -> Result<(), OnyxError> {
                     None
                 };
 
-                let track = ParsedTrack {
+                let track = Play {
                     track_name,
                     track_mb_id,
                     recording_mb_id,
@@ -321,7 +322,7 @@ async fn run_onyx() -> Result<(), OnyxError> {
                     track_discriminant,
                     release_discriminant,
                     music_service_base_domain: None,
-                    client_id: None,
+                    submission_client_agent: None,
                     artist_names: None,
                     artist_mb_ids: None,
                 };

@@ -5,7 +5,10 @@ use std::{
     path::PathBuf,
 };
 
-use crate::parser::{LogParser, ParsedArtist, ParsedTrack, ParserError};
+use crate::{
+    parser::{LogParser, ParserError},
+    record::{Artist, Play},
+};
 
 #[derive(Debug)]
 pub struct AudioScrobblerParser {
@@ -171,7 +174,7 @@ impl AudioScrobblerParser {
 }
 
 impl LogParser for AudioScrobblerParser {
-    fn parse(log: PathBuf) -> Result<Vec<ParsedTrack>, ParserError> {
+    fn parse(log: PathBuf) -> Result<Vec<Play>, ParserError> {
         let file = File::open(log)?;
         let reader = BufReader::new(file);
         let log = Self::parse(reader)?;
@@ -193,18 +196,18 @@ impl LogParser for AudioScrobblerParser {
 
             let mut artists = Vec::new();
 
-            let artist = ParsedArtist {
+            let artist = Artist {
                 artist_name: entry.artist_name,
                 artist_mb_id: None,
             };
 
             artists.push(artist);
 
-            let track = ParsedTrack {
+            let track = Play {
                 track_name: entry.track_name,
                 duration: Some(entry.duration),
                 played_time: Some(dt),
-                client_id: log.client_id.clone(),
+                submission_client_agent: log.client_id.clone(),
                 artists: Some(artists),
                 release_name: entry.album_name,
                 track_mb_id: entry.mb_track_id,

@@ -1,9 +1,7 @@
 pub mod audio_scrobbler;
 
 mod error;
-mod meta;
-mod parser;
+mod log_parser;
 
 pub use error::ParserError;
-pub use meta::{ParsedArtist, ParsedTrack};
-pub use parser::LogParser;
+pub use log_parser::LogParser;
