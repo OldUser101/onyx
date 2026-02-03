@@ -1,13 +1,13 @@
 use chrono::{DateTime, FixedOffset};
 use jacquard::{CowStr, smol_str::ToSmolStr, types::string::Datetime};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Artist {
     pub artist_name: String,
     pub artist_mb_id: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Play {
     pub track_name: String,
     pub track_mb_id: Option<String>,
@@ -27,7 +27,7 @@ pub struct Play {
     pub release_discriminant: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PlayView {
     pub track_name: String,
     pub track_mb_id: Option<String>,
@@ -43,7 +43,7 @@ pub struct PlayView {
     pub played_time: Option<DateTime<FixedOffset>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Status {
     pub time: DateTime<FixedOffset>,
     pub expiry: Option<DateTime<FixedOffset>>,

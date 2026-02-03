@@ -1,12 +1,17 @@
+use chrono::{DateTime, Duration, FixedOffset};
 use jacquard::{
-    client::{AgentSessionExt, BasicClient},
+    client::{Agent, AgentSessionExt, BasicClient},
     prelude::IdentityResolver,
-    types::{did::Did, string::Handle},
+    types::{aturi::AtUri, did::Did, string::Handle},
 };
 use jacquard_api::fm_teal::alpha::actor::status as fm_teal_status;
 use jacquard_identity::{JacquardResolver, PublicResolver};
 
-use crate::{error::OnyxError, record::Status};
+use crate::{
+    auth::GenericSession,
+    error::OnyxError,
+    record::{PlayView, Status},
+};
 
 fn get_status_endpoint(did: String) -> String {
     format!("at://{}/fm.teal.alpha.actor.status/self", did)
@@ -54,6 +59,47 @@ impl StatusManager {
             .value;
 
         Ok(status_rec.into())
+    }
+
+    pub async fn set_status(
+        &self,
+        session: GenericSession,
+        status: Status,
+    ) -> Result<(), OnyxError> {
+        let did = self.resolve_did(&self.ident).await?;
+        let endpoint = get_status_endpoint(did.to_string());
+        let uri = AtUri::new(&endpoint)?;
+
+        let agent = Agent::from(session);
+        agent
+            .update_record::<fm_teal_status::Status>(&uri, |stat| {
+                let status: fm_teal_status::Status = status.into();
+                stat.time = status.time;
+                stat.expiry = status.expiry;
+                stat.item = status.item;
+            })
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn clear_status(&self, session: GenericSession) -> Result<(), OnyxError> {
+        let now: DateTime<FixedOffset> = chrono::Local::now().into();
+        let expiry = now - Duration::minutes(1);
+
+        self.set_status(
+            session,
+            Status {
+                time: now,
+                expiry: Some(expiry),
+                item: PlayView {
+                    track_name: "".to_string(),
+                    artists: Vec::new(),
+                    ..Default::default()
+                },
+            },
+        )
+        .await
     }
 
     pub fn display_status(&self, status: &Status, raw: bool, full: bool) {

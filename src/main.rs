@@ -187,6 +187,9 @@ enum StatusCommands {
         #[arg(short, long, action)]
         full: bool,
     },
+
+    /// Clear current playing status
+    Clear,
 }
 
 fn get_auth() -> Result<Authenticator, OnyxError> {
@@ -367,6 +370,24 @@ async fn run_onyx() -> Result<(), OnyxError> {
                 let status_man = StatusManager::new(&ident);
                 let status = status_man.get_status().await?;
                 status_man.display_status(&status, raw, full);
+            }
+            StatusCommands::Clear => {
+                let auth = get_auth()?;
+                let session_info = auth.get_session_info()?;
+                let session = auth.restore().await?;
+
+                let status_man = StatusManager::new(&session_info.did);
+                status_man.clear_status(session).await?;
+
+                println!(
+                    "{}: cleared status for {}, {}",
+                    "success".green().bold(),
+                    (session_info
+                        .handles
+                        .first()
+                        .unwrap_or(&"(no handle)".red().to_string())),
+                    session_info.did,
+                );
             }
         },
     }
