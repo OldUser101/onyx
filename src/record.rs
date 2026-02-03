@@ -199,3 +199,107 @@ impl From<Status> for jacquard_api::fm_teal::alpha::actor::status::Status<'stati
         }
     }
 }
+
+impl Status {
+    pub fn display(&self, raw: bool, full: bool) {
+        // if both track name and artists are blank, probably nothing's playing
+        if self.item.track_name.is_empty() && self.item.artists.is_empty() && !raw {
+            println!("nothing playing right now");
+            return;
+        }
+
+        println!("track: {}", self.item.track_name);
+
+        if let Some(track_id) = &self.item.track_mb_id
+            && full
+        {
+            println!("track id: {}", track_id);
+        }
+
+        if let Some(recording_id) = &self.item.recording_mb_id
+            && full
+        {
+            println!("recording id: {}", recording_id);
+        }
+
+        if !self.item.artists.is_empty() || raw {
+            print!("artists: ");
+
+            for i in 0..self.item.artists.len() {
+                print!("{}", self.item.artists[i].artist_name);
+
+                if let Some(artist_id) = &self.item.artists[i].artist_mb_id
+                    && full
+                {
+                    print!(" [{}]", artist_id);
+                }
+
+                if i != self.item.artists.len() - 1 {
+                    print!(", ");
+                }
+            }
+
+            println!();
+        }
+
+        if let Some(release) = &self.item.release_name {
+            println!("release: {}", release);
+        }
+
+        if let Some(release_id) = &self.item.release_mb_id
+            && full
+        {
+            println!("release id: {}", release_id);
+        }
+
+        if let Some(isrc) = &self.item.isrc
+            && full
+        {
+            println!("isrc: {}", isrc);
+        }
+
+        if let Some(played_time) = &self.item.played_time {
+            if raw {
+                println!("played: {}", played_time.format("%Y-%m-%d %H:%M:%S %:z"));
+            } else {
+                let local_dt = played_time.with_timezone(&chrono::Local);
+                println!("played: {}", local_dt.format("%Y-%m-%d %H:%M:%S"));
+            }
+        }
+
+        if let Some(duration) = self.item.duration {
+            if raw {
+                println!("duration: {}", duration);
+            } else {
+                let hours = duration / 3600;
+                let minutes = (duration - (hours * 3600)) / 60;
+                let seconds = duration - (minutes * 60);
+
+                let mut duration_str = "".to_string();
+                if hours > 0 {
+                    duration_str = format!("{:02}:", hours);
+                }
+                if minutes > 0 || hours > 0 {
+                    duration_str = format!("{}{:02}:", duration_str, minutes);
+                }
+                if seconds > 0 || minutes > 0 || hours > 0 {
+                    duration_str = format!("{}{:02}", duration_str, seconds);
+                }
+
+                println!("duration: {}", duration_str);
+            }
+        }
+
+        if let Some(service) = &self.item.music_service_base_domain
+            && full
+        {
+            println!("service: {}", service);
+        }
+
+        if let Some(client) = &self.item.submission_client_agent
+            && full
+        {
+            println!("client: {}", client);
+        }
+    }
+}

@@ -369,7 +369,7 @@ async fn run_onyx() -> Result<(), OnyxError> {
 
                 let status_man = StatusManager::new(&ident);
                 let status = status_man.get_status().await?;
-                status_man.display_status(&status, raw, full);
+                status.display(raw, full);
             }
             StatusCommands::Clear => {
                 let auth = get_auth()?;
