@@ -114,13 +114,13 @@ enum ScrobbleCommands {
         #[arg(short, long)]
         duration: Option<i64>,
 
-        /// The artist name
+        /// A comma-separated list of artist name
         #[arg(short, long)]
-        artist_name: Option<String>,
+        artist_names: Option<String>,
 
-        /// The MusicBrainz ID of the artist
+        /// A comma-separated list of artist MusicBrainz IDs
         #[arg(long)]
-        artist_mb_id: Option<String>,
+        artist_mb_ids: Option<String>,
 
         /// The name of the release/album
         #[arg(short, long)]
@@ -210,6 +210,52 @@ fn generate_client_version() -> String {
     format!("v{}", env!("CARGO_PKG_VERSION"))
 }
 
+fn parse_artist_list(
+    artist_names: Option<String>,
+    artist_mb_ids: Option<String>,
+) -> Result<Option<Vec<Artist>>, OnyxError> {
+    Ok(match artist_names {
+        Some(names) => {
+            let mut artists = Vec::new();
+
+            let names: Vec<&str> = names.split(",").collect();
+            for name in names {
+                let name = name.trim();
+
+                if name.is_empty() {
+                    continue;
+                }
+
+                artists.push(Artist {
+                    artist_name: name.to_owned(),
+                    artist_mb_id: None,
+                });
+            }
+
+            if let Some(mb_ids) = artist_mb_ids {
+                let mb_ids: Vec<&str> = mb_ids.split(",").collect();
+
+                if mb_ids.len() > artists.len() {
+                    return Err(OnyxError::Parse(
+                        "cannot be more `artist_mb_ids` than `artist_names`".into(),
+                    ));
+                }
+
+                for i in 0..mb_ids.len() {
+                    let id = mb_ids[i].trim();
+
+                    if !id.is_empty() {
+                        artists[i].artist_mb_id = Some(id.to_owned());
+                    }
+                }
+            }
+
+            Some(artists)
+        }
+        None => None,
+    })
+}
+
 async fn run_onyx() -> Result<(), OnyxError> {
     let mut matches = get_command().get_matches();
     let args = Args::from_arg_matches_mut(&mut matches).unwrap();
@@ -290,8 +336,8 @@ async fn run_onyx() -> Result<(), OnyxError> {
                 track_mb_id,
                 recording_mb_id,
                 duration,
-                artist_name,
-                artist_mb_id,
+                artist_names,
+                artist_mb_ids,
                 release_name,
                 release_mb_id,
                 origin_url,
@@ -300,16 +346,7 @@ async fn run_onyx() -> Result<(), OnyxError> {
                 track_discriminant,
                 release_discriminant,
             } => {
-                let artist = artist_name.map(|a| Artist {
-                    artist_name: a,
-                    artist_mb_id,
-                });
-
-                let artists = if let Some(artist) = artist {
-                    Some(vec![artist])
-                } else {
-                    None
-                };
+                let artists = parse_artist_list(artist_names, artist_mb_ids)?;
 
                 let track = Play {
                     track_name,
@@ -418,5 +455,39 @@ async fn main() {
     if let Err(e) = run_onyx().await {
         handle_error(e);
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    #[test]
+    fn test_parse_artists() {
+        let artist_names = "Test 1 , Test 2 , Test 3, Test 4, ";
+        let artist_mb_ids = "ABCD, 1234, DCBA";
+
+        match parse_artist_list(
+            Some(artist_names.to_string()),
+            Some(artist_mb_ids.to_string()),
+        ) {
+            Ok(l) => {
+                let artists = l.unwrap();
+
+                assert!(artists.len() == 4);
+
+                assert!(artists[0].artist_name == "Test 1");
+                assert!(artists[0].artist_mb_id.as_ref().unwrap() == "ABCD");
+                assert!(artists[1].artist_name == "Test 2");
+                assert!(artists[1].artist_mb_id.as_ref().unwrap() == "1234");
+                assert!(artists[2].artist_name == "Test 3");
+                assert!(artists[2].artist_mb_id.as_ref().unwrap() == "DCBA");
+                assert!(artists[3].artist_name == "Test 4");
+                assert!(artists[3].artist_mb_id.is_none());
+            }
+            Err(e) => {
+                panic!("parse_artist_list: {e}");
+            }
+        }
     }
 }
