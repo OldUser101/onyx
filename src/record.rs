@@ -301,5 +301,25 @@ impl Status {
         {
             println!("client: {}", client);
         }
+
+        if full {
+            if raw {
+                println!("time: {}", self.time.format("%Y-%m-%d %H:%M:%S %:z"));
+            } else {
+                let local_dt = self.time.with_timezone(&chrono::Local);
+                println!("time: {}", local_dt.format("%Y-%m-%d %H:%M:%S"));
+            }
+        }
+
+        if let Some(expiry) = &self.expiry
+            && full
+        {
+            if raw {
+                println!("expiry: {}", expiry.format("%Y-%m-%d %H:%M:%S %:z"));
+            } else {
+                let local_dt = expiry.with_timezone(&chrono::Local);
+                println!("expiry: {}", local_dt.format("%Y-%m-%d %H:%M:%S"));
+            }
+        }
     }
 }
