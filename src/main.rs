@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use crate::{
     auth::{AuthMethod, Authenticator, GenericSession},
     error::OnyxError,
-    record::{Artist, Play},
+    record::{Artist, Play, PlayView, Status},
     scrobble::Scrobbler,
     status::StatusManager,
 };
@@ -171,6 +171,7 @@ enum LogFormat {
     AudioScrobbler,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Subcommand, Debug)]
 enum StatusCommands {
     /// Display user playing status
@@ -186,6 +187,60 @@ enum StatusCommands {
         /// Display all status fields
         #[arg(short, long, action)]
         full: bool,
+    },
+
+    /// Set user playing status
+    Set {
+        /// The name of the track
+        track_name: String,
+
+        /// The MusicBrainz ID of the track
+        #[arg(long)]
+        track_mb_id: Option<String>,
+
+        /// The MusicBrainz ID of the recording
+        #[arg(long)]
+        recording_mb_id: Option<String>,
+
+        /// The track duration in seconds
+        #[arg(short, long)]
+        duration: Option<i64>,
+
+        /// A comma-separated list of artist name
+        #[arg(short, long)]
+        artist_names: Option<String>,
+
+        /// A comma-separated list of artist MusicBrainz IDs
+        #[arg(long)]
+        artist_mb_ids: Option<String>,
+
+        /// The name of the release/album
+        #[arg(short, long)]
+        release_name: Option<String>,
+
+        /// The MusicBrainz ID of the release/album
+        #[arg(long)]
+        release_mb_id: Option<String>,
+
+        /// The URL associated with the track
+        #[arg(short, long)]
+        origin_url: Option<String>,
+
+        /// The ISRC accosiated with the recording
+        #[arg(long)]
+        isrc: Option<String>,
+
+        /// Time the track was played (RFC 3339 format)
+        #[arg(short, long)]
+        played_time: Option<chrono::DateTime<chrono::FixedOffset>>,
+
+        /// Time of status creation, defaults to current time
+        #[arg(short, long)]
+        time: Option<chrono::DateTime<chrono::FixedOffset>>,
+
+        /// Time of status expiry, defaults to start time + 10 minutes
+        #[arg(short, long)]
+        expiry: Option<chrono::DateTime<chrono::FixedOffset>>,
     },
 
     /// Clear current playing status
@@ -407,6 +462,63 @@ async fn run_onyx() -> Result<(), OnyxError> {
                 let status_man = StatusManager::new(&ident);
                 let status = status_man.get_status().await?;
                 status.display(raw, full);
+            }
+            StatusCommands::Set {
+                track_name,
+                track_mb_id,
+                recording_mb_id,
+                duration,
+                artist_names,
+                artist_mb_ids,
+                release_name,
+                release_mb_id,
+                origin_url,
+                isrc,
+                played_time,
+                time,
+                expiry,
+            } => {
+                let artists = parse_artist_list(artist_names, artist_mb_ids)?.unwrap_or(Vec::new());
+
+                let play = PlayView {
+                    track_name,
+                    track_mb_id,
+                    recording_mb_id,
+                    duration,
+                    artists,
+                    release_name,
+                    release_mb_id,
+                    origin_url,
+                    isrc,
+                    played_time,
+                    music_service_base_domain: None,
+                    submission_client_agent: None,
+                };
+
+                let time = time.unwrap_or(chrono::Local::now().into());
+
+                let status = Status {
+                    time,
+                    expiry: Some(expiry.unwrap_or(time + std::time::Duration::from_mins(10))),
+                    item: play,
+                };
+
+                let auth = get_auth()?;
+                let session_info = auth.get_session_info()?;
+                let session = auth.restore().await?;
+
+                let status_man = StatusManager::new(&session_info.did);
+                status_man.set_status(session, status).await?;
+
+                println!(
+                    "{}: set status for {}, {}",
+                    "success".green().bold(),
+                    (session_info
+                        .handles
+                        .first()
+                        .unwrap_or(&"(no handle)".red().to_string())),
+                    session_info.did
+                );
             }
             StatusCommands::Clear => {
                 let auth = get_auth()?;
