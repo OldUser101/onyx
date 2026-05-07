@@ -172,6 +172,8 @@ enum ScrobbleCommands {
 enum LogFormat {
     /// Use AudioScrobbler log format
     AudioScrobbler,
+    /// Use newline-delimited JSON format
+    Json,
 }
 
 #[allow(clippy::large_enum_variant)]

@@ -1,4 +1,5 @@
 pub mod audio_scrobbler;
+pub mod json;
 
 mod error;
 mod log_parser;

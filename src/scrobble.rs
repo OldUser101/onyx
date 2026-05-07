@@ -8,7 +8,7 @@ use crate::{
     LogFormat,
     auth::GenericSession,
     error::OnyxError,
-    parser::{LogParser, audio_scrobbler::AudioScrobblerParser},
+    parser::{LogParser, audio_scrobbler::AudioScrobblerParser, json::JsonParser},
     record::Play,
 };
 
@@ -70,6 +70,7 @@ impl Scrobbler {
 
         let tracks = match format {
             LogFormat::AudioScrobbler => <AudioScrobblerParser as LogParser>::parse(path.clone()),
+            LogFormat::Json => <JsonParser as LogParser>::parse(path.clone()),
         }?;
 
         let count = tracks.len();
