@@ -1,6 +1,9 @@
 use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
-use std::{io::BufRead, path::PathBuf};
+use std::{io::BufReader, path::PathBuf};
+
+#[cfg(unix)]
+use std::os::unix::net::UnixListener;
 
 use crate::{
     auth::{AuthMethod, Authenticator, GenericSession},
@@ -164,8 +167,12 @@ enum ScrobbleCommands {
         delete: bool,
     },
 
-    /// Scrobble tracks interactively from standard input
-    Interactive,
+    /// Scrobble tracks interactively
+    Interactive {
+        /// Path to a Unix domain socket to use instead of standard input (Unix only)
+        #[arg(short, long)]
+        socket: Option<PathBuf>,
+    },
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -452,26 +459,42 @@ async fn run_onyx() -> Result<(), OnyxError> {
                     );
                 }
             }
-            ScrobbleCommands::Interactive => {
+            ScrobbleCommands::Interactive { socket } => {
                 let version = generate_client_version();
                 let session = get_session().await?;
                 let scrobbler = Scrobbler::new("onyx", &version, session);
 
-                println!("{}", "waiting for tracks...".dimmed());
-
-                let stdin = std::io::stdin();
-                let reader = std::io::BufReader::new(stdin);
-
-                for msg in reader.lines() {
-                    let msg = msg?;
-
-                    if msg.trim().is_empty() {
-                        // skip empty messages
-                        continue;
+                #[cfg(unix)]
+                async fn run_socket(
+                    socket: PathBuf,
+                    scrobbler: Scrobbler,
+                ) -> Result<(), OnyxError> {
+                    // we can't open a socket already in use
+                    if socket.exists() {
+                        std::fs::remove_file(&socket)?;
                     }
 
-                    let msg: record::Play = serde_json::from_str(&msg)?;
-                    scrobbler.scrobble_track(msg).await?;
+                    let listener = UnixListener::bind(socket)?;
+
+                    // run the receiver forever in case client dies
+                    loop {
+                        println!("{}", "waiting for socket connection...".dimmed());
+                        let (stream, _) = listener.accept()?;
+                        let reader = BufReader::new(stream);
+                        println!("{}", "waiting for tracks...".dimmed());
+                        scrobbler.scrobble_lines(reader).await?;
+                        println!();
+                    }
+                }
+
+                if cfg!(unix)
+                    && let Some(socket) = socket
+                {
+                    run_socket(socket, scrobbler).await?;
+                } else {
+                    let reader = BufReader::new(std::io::stdin());
+                    println!("{}", "waiting for tracks...".dimmed());
+                    scrobbler.scrobble_lines(reader).await?;
                 }
             }
         },

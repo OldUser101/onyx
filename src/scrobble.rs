@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{io::BufRead, path::PathBuf};
 
 use jacquard::client::{Agent, AgentSessionExt};
 use jacquard_api::fm_teal::alpha::feed as fm_teal_feed;
@@ -105,6 +105,25 @@ impl Scrobbler {
             ));
         } else {
             println!("\n{}: {} tracks submitted", "success".green().bold(), count);
+        }
+
+        Ok(())
+    }
+
+    pub async fn scrobble_lines<R>(&self, reader: R) -> Result<(), OnyxError>
+    where
+        R: BufRead,
+    {
+        for msg in reader.lines() {
+            let msg = msg?;
+
+            if msg.trim().is_empty() {
+                // skip empty messages
+                continue;
+            }
+
+            let msg: Play = serde_json::from_str(&msg)?;
+            self.scrobble_track(msg).await?;
         }
 
         Ok(())
