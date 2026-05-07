@@ -1,6 +1,6 @@
 use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{io::BufRead, path::PathBuf};
 
 use crate::{
     auth::{AuthMethod, Authenticator, GenericSession},
@@ -163,6 +163,9 @@ enum ScrobbleCommands {
         #[arg(short, long, action)]
         delete: bool,
     },
+
+    /// Scrobble tracks interactively from standard input
+    Interactive,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -445,6 +448,28 @@ async fn run_onyx() -> Result<(), OnyxError> {
                         "{}",
                         format!("deleted log: {}", log.to_str().unwrap()).dimmed()
                     );
+                }
+            }
+            ScrobbleCommands::Interactive => {
+                let version = generate_client_version();
+                let session = get_session().await?;
+                let scrobbler = Scrobbler::new("onyx", &version, session);
+
+                println!("{}", "waiting for tracks...".dimmed());
+
+                let stdin = std::io::stdin();
+                let reader = std::io::BufReader::new(stdin);
+
+                for msg in reader.lines() {
+                    let msg = msg?;
+
+                    if msg.trim().is_empty() {
+                        // skip empty messages
+                        continue;
+                    }
+
+                    let msg: record::Play = serde_json::from_str(&msg)?;
+                    scrobbler.scrobble_track(msg).await?;
                 }
             }
         },
