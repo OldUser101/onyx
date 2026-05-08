@@ -1,29 +1,38 @@
 {
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
-    naersk = {
-      url = "github:nix-community/naersk/master";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+  outputs =
+    { self, nixpkgs }:
+    let
+      overlays = import ./nix/overlay.nix;
 
-    utils.url = "github:numtide/flake-utils";
-  };
+      forAllSystems =
+        f:
+        nixpkgs.lib.genAttrs nixpkgs.lib.systems.flakeExposed (
+          system:
+          f (
+            import nixpkgs {
+              inherit system;
+              overlays = [ overlays.onyx ];
+            }
+          )
+        );
+    in
+    {
+      overlays = forAllSystems (_: {
+        default = overlays.onyx;
+        onyx = overlays.onyx;
+      });
 
-  outputs = { self, nixpkgs, naersk, utils }:
-    utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = import nixpkgs { inherit system; };
-        naersk-lib = pkgs.callPackage naersk { };
-      in
-      {
-        packages = {
-          default = naersk-lib.buildPackage {
-            src = ./.;
-          };
-        };
+      packages = forAllSystems (pkgs: rec {
+        default = onyx;
+        onyx = pkgs.onyx;
+      });
 
-        devShell = with pkgs; mkShell {
+      devShell = forAllSystems (
+        pkgs:
+        with pkgs;
+        mkShell {
           buildInputs = [
             cargo
             rustc
@@ -34,7 +43,7 @@
           ];
 
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
-        };
-      }
-    );
+        }
+      );
+    };
 }

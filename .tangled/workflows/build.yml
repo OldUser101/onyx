@@ -1,0 +1,13 @@
+when:
+  - event: [ "push", "manual" ]
+    branch: [ "main" ]
+
+engine: nixery
+
+dependencies:
+  nixpkgs:
+    - nix
+
+steps:
+  - name: Build Onyx
+    command: nix build .#onyx
