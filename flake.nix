@@ -19,10 +19,10 @@
         );
     in
     {
-      overlays = forAllSystems (_: {
+      overlays = {
         default = overlays.onyx;
         onyx = overlays.onyx;
-      });
+      };
 
       packages = forAllSystems (pkgs: rec {
         default = onyx;
